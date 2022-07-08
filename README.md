@@ -69,7 +69,7 @@ Chains with support for [Trace API](https://openethereum.github.io/JSONRPC-trace
     - `calldata` - function calldata
     - `contractAddress` - address of the deployed contract
     - `deployerAddress` - address of the contract deployer 
-    - `fundedAddress` - address of which the balance change has broken through the threshold 
+    - `fundedAddress` - address of which the balance change has exceeded the threshold value 
     - `balanceChanges` - map object with arrays of balance changes for each account
 
 ## Test Data
