@@ -1,4 +1,4 @@
-# Attack Simulation
+# Attack Simulation Bot
 
 ## Description
 
