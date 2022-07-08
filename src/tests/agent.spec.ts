@@ -1,28 +1,21 @@
+const mockEthersProvider = jest.fn();
+
+jest.mock('forta-agent', () => ({
+  ...jest.requireActual('forta-agent'),
+  getEthersProvider: mockEthersProvider,
+}));
+
+import { Finding, FindingSeverity, FindingType, HandleTransaction } from 'forta-agent';
 import Ganache, { EthereumProvider } from 'ganache';
-import { ethers } from 'ethers';
-import {
-  CreatedContract,
-  DataContainer,
-  HandleContract,
-  TrackableTokensConfig,
-  TrackableToken,
-  TokenInfo,
-  TokenInterface,
-} from '../types';
-import { compile, CompilerArtifact } from './utils/compiler';
-import { createExploitFunctionFinding } from '../findings';
-import agent from '../agent';
-import { Logger, LoggerLevel } from '../logger';
 import BigNumber from 'bignumber.js';
+import { ethers } from 'ethers';
+import { TestTransactionEvent } from 'forta-agent-tools/lib/tests';
+import { CreatedContract, DataContainer, HandleContract, TokenInterface } from '../types';
+import { compile, CompilerArtifact } from './utils/compiler';
+import { Logger, LoggerLevel } from '../logger';
+import agent from '../agent';
 
-// const mockEthersProvider = jest.fn();
-//
-// jest.mock('forta-agent', () => ({
-//   ...jest.requireActual('forta-agent'),
-//   getEthersProvider: mockEthersProvider,
-// }));
-
-const { provideHandleContract } = agent;
+const { provideInitialize, provideHandleContract, provideHandleTransaction } = agent;
 
 describe('attack simulation', () => {
   describe('handleContract', () => {
@@ -257,7 +250,7 @@ describe('attack simulation', () => {
       await handleContract(createdContract);
 
       if (thresholdMultiplier >= 1) {
-        expect(data.findings).toStrictEqual([])
+        expect(data.findings).toStrictEqual([]);
         return;
       }
 
@@ -390,6 +383,69 @@ describe('attack simulation', () => {
         accounts[1],
         accounts[2],
       );
+    });
+  });
+
+  describe('handleTransaction', () => {
+    let mockTxEvent: TestTransactionEvent;
+    let handleTransaction: HandleTransaction;
+    let data: DataContainer;
+
+    const chainId = 1;
+    const mockHandleContract = jest.fn();
+
+    beforeAll(() => {
+      mockEthersProvider.mockReturnValue({
+        getNetwork: () => ({
+          chainId: chainId,
+        }),
+      });
+    });
+
+    beforeEach(async () => {
+      data = {} as any;
+      mockTxEvent = new TestTransactionEvent();
+      handleTransaction = provideHandleTransaction(data);
+      await provideInitialize(
+        data,
+        { chains: { [chainId]: {} }, developerAbbreviation: '' },
+        mockHandleContract,
+      )();
+      mockHandleContract.mockReset();
+    });
+
+    afterAll(() => {
+      mockEthersProvider.mockReset();
+    });
+
+    it('should return empty findings if there are no new findings in data container', async () => {
+      const findings = await handleTransaction(mockTxEvent);
+      expect(findings).toStrictEqual([]);
+    });
+
+    it('should return and clear findings when handleContract push them to data container', async () => {
+      let findings = await handleTransaction(mockTxEvent);
+      expect(findings).toStrictEqual([]);
+      const expectedFindings = [
+        Finding.from({
+          alertId: '1',
+          name: 'Name 1',
+          description: 'Description 1',
+          type: FindingType.Unknown,
+          severity: FindingSeverity.Unknown,
+        }),
+        Finding.from({
+          alertId: '2',
+          name: 'Name 2',
+          description: 'Description 2',
+          type: FindingType.Unknown,
+          severity: FindingSeverity.Unknown,
+        }),
+      ];
+      data.findings.push(...expectedFindings);
+      findings = await handleTransaction(mockTxEvent);
+      expect(findings).toStrictEqual(expectedFindings);
+      expect(data.findings).toStrictEqual([]);
     });
   });
 });
