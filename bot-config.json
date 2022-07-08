@@ -1,3 +1,17 @@
 {
-  "developerAbbreviation": "AK"
+  "developerAbbreviation": "AK",
+  "chains": {
+    "1": {
+      "native": {
+        "name": "ETH",
+        "decimals": 18,
+        "threshold": 10
+      },
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": {
+        "name": "WETH",
+        "decimals": 18,
+        "threshold": 10
+      }
+    }
+  }
 }

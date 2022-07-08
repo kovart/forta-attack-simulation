@@ -27,12 +27,16 @@
   },
   "dependencies": {
     "async": "^3.2.4",
+    "bignumber.js": "^9.0.2",
     "ethers": "^5.6.9",
+    "evm": "^0.2.0",
     "forta-agent": "^0.1.8",
     "ganache": "^7.3.2",
+    "js-combinatorics": "^2.1.1",
     "solc": "^0.8.15"
   },
   "devDependencies": {
+    "@openzeppelin/contracts": "^4.7.0",
     "@types/async": "^3.2.14",
     "@types/jest": "^27.0.1",
     "@types/nodemon": "^1.19.0",
