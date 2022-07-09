@@ -2,33 +2,35 @@
 
 ## Description
 
-The agent detects the deployment of smart contracts containing an exploit function. \
-[Simulation based approach](https://forta.org/blog/attack-simulation/) used in the agent
-allows to predict the results before the functions are executed.
+The agent detects the deployment of smart contracts containing an exploit function. 
+
+Using [simulation based approach](https://forta.org/blog/attack-simulation/), 
+the bot predicts the result of function execution within a local blockchain fork and tracks any changes in account balances, 
+allowing it to detect a potential attack before it is actually executed.
+
+---
+
+This bot keeps track of all the changes in the balances of the native, ERC20, ERC721 and ERC1155 tokens that have left their traces in the transaction logs. It also takes into account negative changes in balances, as they help detect attacked projects, as well as include these addresses in the alert, which can notify projects before the exloit is used, keeping the assets intact. In addition, this approach covers attacks where there are an asset transfers to a non-attacker account. The address of such an account can be found in the `fundedAddress` field inside the alert [metadata](#alerts).
 
 ---
 
 The bot scans each transaction for contract creation (including contracts created by contracts).
-As soon as new contracts are detected, their bytecode is pulled, translated into opcode,
-the bot determines functions by the 4bytes selectors.
+As soon as new contracts are detected, their code is fetched and translated into OPCODE.
+This instruction machine code allows to find possible function selectors (4bytes) without having the [contract ABI](https://docs.soliditylang.org/en/v0.8.13/abi-spec.html).
 
-The bot then launches a local fork of the blockchain,
-within which it tries to mimic the execution of the functions
-observing changes in the token balances.
+The bot then launches a local fork of the blockchain, within which it tries to mimic the execution of the functions observing changes in the token balances. 
+To bring the simulation closer to real life, the bot performs transactions on behalf of the account that deployed the contract.
 
-It also uses a clever way of fuzzing function parameters,
-shuffling popular values in various quantities.
-
-Once the bot sees that the balance change of one of the tokens in one of the involved accounts,
-breaks the threshold value,
-which is specified for each token separately,
-the bot collects all the balance changes and fires an alert.
+While most exploit functions do not take any parameters, the bot tries to cover cases where the function can take up to 5 different parameters. 
+It uses a clever way of determining the number of parameters, after which it is fuzzing them, shuffling potential values in various quantities. 
 
 ## Configuration
 
 You can configure the agent in the [bot-config.json](./bot-config.json) file.
+Supported token standards: native (e.g. ETH, MATIC), ERC20, ERC721, ERC1155.
 
-Supported token standards: Native (e.g. ETH, MATIC), ERC20, ERC721, ERC1155.
+An important configuration parameter is the `threshold` field, which is specified for each of the tokens separately. 
+For ERC721, ERC1155 tokens, it defines the threshold value of total number of inner tokens. For example, by setting `threshold` to `10` for an ERC721 token, the bot will fire an alarm if it detects that an account has taken ownership of 11 different tokens (token IDs). For ERC1155 tokens, the bot also takes into account the value of each of the internal tokens, and sums them into one number.
 
 #### Example
 
