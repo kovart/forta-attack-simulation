@@ -282,17 +282,20 @@ export async function getTokenDecimals(params: {
 
 export function getCreatedContracts(txEvent: TransactionEvent): CreatedContract[] {
   const createdContracts: CreatedContract[] = [];
+  const sender = txEvent.from.toLowerCase();
+
+  // in our case, we assume that deployer is actually the person who initiated the deploy transaction
+  // even if a contract is created by another contract
 
   for (const trace of txEvent.traces) {
     if (trace.type === 'create') {
-      const sender = txEvent.from.toLowerCase();
       const deployer = trace.action.from.toLowerCase();
 
       // Parity/OpenEthereum trace format contains created address
       // https://github.com/NethermindEth/docs/blob/master/nethermind-utilities/cli/trace.md
       if (trace.result.address) {
         createdContracts.push({
-          deployer: deployer,
+          deployer: sender,
           address: trace.result.address.toLowerCase(),
           blockNumber: txEvent.blockNumber,
         });
@@ -305,7 +308,7 @@ export function getCreatedContracts(txEvent: TransactionEvent): CreatedContract[
         const nonce = sender === deployer ? txEvent.transaction.nonce : 1;
         const createdContract = ethers.utils.getContractAddress({ from: deployer, nonce });
         createdContracts.push({
-          deployer: deployer,
+          deployer: sender,
           address: createdContract.toLowerCase(),
           blockNumber: txEvent.blockNumber,
         });

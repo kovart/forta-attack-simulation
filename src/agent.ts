@@ -27,7 +27,10 @@ const provideInitialize = (
     data.developerAbbreviation = config.developerAbbreviation;
     data.isDevelopment = process.env.NODE_ENV !== 'production';
     data.provider = getEthersProvider();
-    data.queue = queue(handleContract, 1);
+    data.queue = queue(async (createdContract, cb) => {
+      await handleContract(createdContract);
+      cb();
+    }, 1);
     data.findings = [];
     data.tokensConfig = {};
     const chainId = (await data.provider.getNetwork()).chainId;
@@ -49,7 +52,7 @@ const provideHandleContract = (
   return async function handleContract(createdContract: CreatedContract) {
     data.logger.debug('Contract', createdContract.address);
 
-    const provider = await getForkedProvider(createdContract.blockNumber, [
+    const provider = getForkedProvider(createdContract.blockNumber, [
       createdContract.deployer, // we use deployer address as a transaction sender
     ]);
     const contractCode = await provider.getCode(
@@ -58,15 +61,19 @@ const provideHandleContract = (
     );
     const sighashes = getSighashes(contractCode);
 
-    // send ethers to the sender's account
-    // to make sure that the balance will be enough to call transactions
-    const accounts = await provider.listAccounts();
-    const tx = await provider.getSigner(accounts[0]).sendTransaction({
-      to: createdContract.deployer,
-      // substitute one ether to be able to complete this transaction
-      value: (await provider.getBalance(accounts[0])).sub(ethers.utils.parseEther('1')),
-    });
-    await tx.wait();
+    try {
+      // send ethers to the sender's account
+      // to make sure that the balance will be enough to call transactions
+      const accounts = await provider.listAccounts();
+      const tx = await provider.getSigner(accounts[0]).sendTransaction({
+        to: createdContract.deployer,
+        // substitute one ether to be able to complete this transaction
+        value: (await provider.getBalance(accounts[0])).sub(ethers.utils.parseEther('1')),
+      });
+      await tx.wait();
+    } catch (e) {
+      data.logger.warn('error when trying to send ethers to the contract deployer', e);
+    }
 
     for (const sighash of sighashes) {
       data.logger.debug('Function', sighash);
@@ -90,7 +97,7 @@ const provideHandleContract = (
             // if we are here, then we successfully completed the transaction
             if (!isSignatureFound) {
               isSignatureFound = true;
-              data.logger.debug('Found signature', sighash, calldata);
+              data.logger.debug('Found signature', createdContract.address, sighash, calldata);
             }
 
             // get all token transfers caused by the transaction (including native ETH)
@@ -194,7 +201,7 @@ const provideHandleContract = (
 
             // check if we faced with error caused by function execution (inner error)
             if (!isSignatureFound && (e.data.reason || e.data.result?.length > 2)) {
-              data.logger.info('Found function signature', sighash, calldata);
+              data.logger.debug('Found signature', createdContract.address, sighash, calldata);
               isSignatureFound = true;
             }
 
