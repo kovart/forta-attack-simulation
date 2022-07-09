@@ -30,7 +30,7 @@ You can configure the agent in the [bot-config.json](./bot-config.json) file.
 Supported token standards: native (e.g. ETH, MATIC), ERC20, ERC721, ERC1155.
 
 An important configuration parameter is the `threshold` field, which is specified for each of the tokens separately. 
-For ERC721, ERC1155 tokens, it defines the threshold value of total number of inner tokens. For example, by setting `threshold` to `10` for an ERC721 token, the bot will fire an alarm if it detects that an account has taken ownership of 11 different tokens (token IDs). For ERC1155 tokens, the bot also takes into account the value of each of the internal tokens, and sums them into one number.
+For ERC721, ERC1155 tokens, it defines the threshold value of total number of inner tokens. For example, by setting `threshold` to `10` for an ERC721 token, the bot will fire an alert if it detects that an account has taken ownership of 11 different tokens (token IDs). For ERC1155 tokens, the bot also takes into account the value of each of the internal tokens, and sums them into one number.
 
 #### Example
 
