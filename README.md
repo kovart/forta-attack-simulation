@@ -10,7 +10,7 @@ allowing it to detect a potential attack before it is actually executed.
 
 ---
 
-This bot keeps track of all the changes in the balances of the native, ERC20, ERC721 and ERC1155 tokens that have left their traces in the transaction logs. It also takes into account negative changes in balances, as they help detect attacked projects, as well as include these addresses in the alert, which can notify projects before the exloit is used, keeping the assets intact. In addition, this approach covers attacks where there are an asset transfers to a non-attacker account. The address of such an account can be found in the `fundedAddress` field inside the alert [metadata](#alerts).
+This bot keeps track of all the changes in the balances of the native, ERC20, ERC721 and ERC1155 tokens that have left their traces in the transaction logs. It also takes into account negative changes in balances, as they help detect attacked projects, as well as include these addresses in the alert, which can notify projects before the exloit is used, keeping the assets intact. In addition, this approach covers attacks in which assets are transferred to a non-attacker account. The address of such an account can be found in the `fundedAddress` field inside the alert [metadata](#alerts).
 
 ---
 
