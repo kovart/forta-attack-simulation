@@ -2,7 +2,7 @@
 
 ## Description
 
-The agent detects the deployment of smart contracts containing an exploit function. 
+The agent detects deployment of smart contracts containing an exploit function. 
 
 Using [simulation based approach](https://forta.org/blog/attack-simulation/), 
 the bot predicts the result of function execution within a local blockchain fork and tracks any changes in account balances, 
