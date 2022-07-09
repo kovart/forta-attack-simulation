@@ -31,6 +31,7 @@ You can configure the agent in the [bot-config.json](./bot-config.json) file.
 Supported token standards: Native (e.g. ETH, MATIC), ERC20, ERC721, ERC1155.
 
 #### Example
+
 ```json
 {
   "developerAbbreviation": "AK",
@@ -45,11 +46,18 @@ Supported token standards: Native (e.g. ETH, MATIC), ERC20, ERC721, ERC1155.
         "name": "WETH",
         "decimals": 18,
         "threshold": 10
+      },
+      "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85": {
+        "name": "ENS",
+        "threshold": 50
+      },
+      "0x495f947276749Ce646f68AC8c248420045cb7b5e": {
+        "name": "OpenSea Shared Storefront",
+        "threshold": 50
       }
     }
   }
 }
-
 ```
 
 ## Supported Chains
@@ -68,13 +76,13 @@ Chains with support for [Trace API](https://openethereum.github.io/JSONRPC-trace
     - `sighash` - function selector
     - `calldata` - function calldata
     - `contractAddress` - address of the deployed contract
-    - `deployerAddress` - address of the contract deployer 
-    - `fundedAddress` - address of which the balance change has exceeded the threshold value 
+    - `deployerAddress` - address of the contract deployer
+    - `fundedAddress` - address of which the balance change has exceeded the threshold value
     - `balanceChanges` - map object with arrays of balance changes for each account
 
 ## Test Data
 
-Since the bot uses the [Long Running Tasks](https://docs.forta.network/en/latest/long-running-tasks/) pattern, 
+Since the bot uses the [Long Running Tasks](https://docs.forta.network/en/latest/long-running-tasks/) pattern,
 the alerts are fired with a delay.
 
 You can verify the work of the agent by running it in the following block range:
