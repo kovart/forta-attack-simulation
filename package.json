@@ -21,6 +21,7 @@
     "disable": "forta-agent disable",
     "enable": "forta-agent enable",
     "keyfile": "forta-agent keyfile",
+    "start:docker": "docker run --rm -it $(docker build -q .)",
     "test": "jest",
     "lint": "eslint src/",
     "prepare": "husky install"

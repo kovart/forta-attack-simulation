@@ -1,12 +1,12 @@
 # Build stage: compile Typescript to Javascript
-FROM node:12-alpine AS builder
+FROM --platform=linux/x86_64 node:12-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN npm ci
 RUN npm run build
 
 # Final stage: copy compiled Javascript from previous stage and install production dependencies
-FROM node:12-alpine
+FROM --platform=linux/x86_64 node:12-alpine
 ENV NODE_ENV=production
 # Uncomment the following line to enable agent logging
 LABEL "network.forta.settings.agent-logs.enable"="true"
