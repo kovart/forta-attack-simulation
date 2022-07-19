@@ -124,7 +124,7 @@ export async function getBalanceChanges(params: {
       };
       // subtract transferred value
       balanceChangesByAccount[from][tokenAddress][generalTokenId] =
-        balanceChangesByAccount[to][tokenAddress][generalTokenId].minus(value);
+        balanceChangesByAccount[from][tokenAddress][generalTokenId].minus(value);
       // add transferred value
       balanceChangesByAccount[to][tokenAddress][generalTokenId] =
         balanceChangesByAccount[to][tokenAddress][generalTokenId].plus(value);
