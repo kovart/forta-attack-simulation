@@ -159,16 +159,15 @@ describe('attack simulation', () => {
     };
 
     const deployExploit = async (
-      deployerSigner: ethers.providers.JsonRpcSigner,
-      spenderSigner: ethers.providers.JsonRpcSigner,
+      attackerSigner: ethers.providers.JsonRpcSigner,
       variant: ExploitVaraint,
       protocolAddress: string,
     ) => {
       const exploitArtifact = await compile(variant);
       return await deployContract(
         exploitArtifact,
-        [protocolAddress, await spenderSigner.getAddress()],
-        deployerSigner,
+        [protocolAddress, await attackerSigner.getAddress()],
+        attackerSigner,
       );
     };
 
@@ -176,15 +175,12 @@ describe('attack simulation', () => {
       exploitVariant: ExploitVaraint,
       thresholdMultiplier = 1,
       attackerAddress: string,
-      attackerFundingAddress: string,
       protocolOwnerAddress: string,
     ) => {
       attackerAddress = attackerAddress.toLowerCase();
-      attackerFundingAddress = attackerFundingAddress.toLowerCase();
       protocolOwnerAddress = protocolOwnerAddress.toLowerCase();
       const protocolOwnerSigner = web3Provider.getSigner(protocolOwnerAddress);
-      const attackerSigner1 = web3Provider.getSigner(attackerAddress);
-      const attackerSigner2 = web3Provider.getSigner(attackerFundingAddress);
+      const attackerSigner = web3Provider.getSigner(attackerAddress);
 
       const testTokensConfig: TestTokensConfig = {
         native: { transferredValue: 10 },
@@ -235,8 +231,7 @@ describe('attack simulation', () => {
       );
 
       const exploitContract = await deployExploit(
-        attackerSigner1,
-        attackerSigner2,
+        attackerSigner,
         exploitVariant,
         exploitedProtocolContract.address,
       );
@@ -269,12 +264,10 @@ describe('attack simulation', () => {
       }
       expect(finding.metadata.contractAddress).toStrictEqual(createdContract.address);
       expect(finding.metadata.deployerAddress).toStrictEqual(createdContract.deployer);
-      expect(finding.metadata.fundedAddress).toStrictEqual(attackerFundingAddress);
       expect(finding.addresses).toEqual(
         expect.arrayContaining([
           ...new Set([
             attackerAddress,
-            attackerFundingAddress,
             exploitContract.address.toLowerCase(),
             exploitedProtocolContract.address.toLowerCase(),
             ...erc20Contracts.map((c) => c.address.toLowerCase()),
@@ -324,7 +317,7 @@ describe('attack simulation', () => {
             .toString(),
         });
       }
-      expect(JSON.parse(finding.metadata.balanceChanges)[attackerFundingAddress]).toEqual(
+      expect(JSON.parse(finding.metadata.balanceChanges)[attackerAddress]).toEqual(
         expect.arrayContaining(attackerBalanceChanges),
       );
     };
@@ -350,7 +343,6 @@ describe('attack simulation', () => {
         ExploitVaraint.ExploitNoParams,
         1.0001,
         accounts[0],
-        accounts[0],
         accounts[1],
       );
     });
@@ -360,18 +352,7 @@ describe('attack simulation', () => {
         ExploitVaraint.ExploitNoParams,
         0.999,
         accounts[0],
-        accounts[0],
         accounts[1],
-      );
-    });
-
-    it('should push a finding if funds are transferred to another attacker account', async () => {
-      await testExploit(
-        ExploitVaraint.ExploitNoParams,
-        0.999,
-        accounts[0],
-        accounts[1],
-        accounts[2],
       );
     });
 
@@ -380,8 +361,7 @@ describe('attack simulation', () => {
         ExploitVaraint.ExploitMultipleParams,
         0.999,
         accounts[0],
-        accounts[1],
-        accounts[2],
+        accounts[1]
       );
     });
   });

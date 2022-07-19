@@ -122,74 +122,72 @@ const provideHandleContract = (
               }
             }
 
-            for (const account of Object.keys(totalBalanceChangesByAccount)) {
-              for (const [tokenAddress, token] of Object.entries(data.tokensConfig)) {
-                const numerator = new BigNumber(10).pow(token.decimals || 0);
-                const threshold = new BigNumber(token.threshold).multipliedBy(numerator);
-                const value =
-                  totalBalanceChangesByAccount[account][tokenAddress] || new BigNumber(0);
+            for (const [tokenAddress, token] of Object.entries(data.tokensConfig)) {
+              const numerator = new BigNumber(10).pow(token.decimals || 0);
+              const threshold = new BigNumber(token.threshold).multipliedBy(numerator);
+              const value =
+                totalBalanceChangesByAccount[createdContract.deployer]?.[tokenAddress] ||
+                new BigNumber(0);
 
-                if (value.isGreaterThan(threshold)) {
-                  const tokensByAccount: { [account: string]: TokenInfo[] } = {};
-                  const namesByToken = await getTokenNames({
-                    addresses: Object.keys(interfacesByToken),
-                    knownTokens: data.tokensConfig,
-                    provider: provider,
-                  });
-                  const decimalsByToken = await getTokenDecimals({
-                    addresses: Object.entries(interfacesByToken)
-                      .filter(([, type]) =>
-                        [TokenInterface.ERC20, TokenInterface.NATIVE].includes(type),
-                      )
-                      .map(([address]) => address),
-                    knownTokens: data.tokensConfig,
-                    provider: provider,
-                  });
+              if (value.isGreaterThan(threshold)) {
+                const tokensByAccount: { [account: string]: TokenInfo[] } = {};
+                const namesByToken = await getTokenNames({
+                  addresses: Object.keys(interfacesByToken),
+                  knownTokens: data.tokensConfig,
+                  provider: provider,
+                });
+                const decimalsByToken = await getTokenDecimals({
+                  addresses: Object.entries(interfacesByToken)
+                    .filter(([, type]) =>
+                      [TokenInterface.ERC20, TokenInterface.NATIVE].includes(type),
+                    )
+                    .map(([address]) => address),
+                  knownTokens: data.tokensConfig,
+                  provider: provider,
+                });
 
-                  const createTokenInfo = (address: string, value: BigNumber): TokenInfo => ({
-                    name: namesByToken[address] || `Unknown (${address})`,
-                    type: interfacesByToken[address],
-                    decimals: decimalsByToken[address],
-                    address: address,
-                    value: value,
-                  });
+                const createTokenInfo = (address: string, value: BigNumber): TokenInfo => ({
+                  name: namesByToken[address] || `Unknown (${address})`,
+                  type: interfacesByToken[address],
+                  decimals: decimalsByToken[address],
+                  address: address,
+                  value: value,
+                });
 
-                  for (const account of Object.keys(totalBalanceChangesByAccount)) {
-                    for (const tokenAddress of Object.keys(totalBalanceChangesByAccount[account])) {
-                      const token = createTokenInfo(
-                        tokenAddress,
-                        totalBalanceChangesByAccount[account][tokenAddress],
-                      );
-                      tokensByAccount[account] = tokensByAccount[account] || [];
-                      tokensByAccount[account].push(token);
-                    }
-                    tokensByAccount[account].sort((a, b) =>
-                      b.value.isGreaterThan(a.value) ? 0 : -1,
+                for (const account of Object.keys(totalBalanceChangesByAccount)) {
+                  for (const tokenAddress of Object.keys(totalBalanceChangesByAccount[account])) {
+                    const token = createTokenInfo(
+                      tokenAddress,
+                      totalBalanceChangesByAccount[account][tokenAddress],
                     );
+                    tokensByAccount[account] = tokensByAccount[account] || [];
+                    tokensByAccount[account].push(token);
                   }
-
-                  const involvedAddresses = new Set([
-                    createdContract.deployer,
-                    createdContract.address,
-                    ...Object.keys(totalBalanceChangesByAccount),
-                    ...receipt.logs.map((l) => l.address.toLowerCase()),
-                  ]);
-
-                  data.findings.push(
-                    createExploitFunctionFinding(
-                      sighash,
-                      calldata,
-                      account,
-                      createdContract.address,
-                      createdContract.deployer,
-                      tokensByAccount,
-                      [...involvedAddresses],
-                      data.developerAbbreviation,
-                    ),
+                  tokensByAccount[account].sort((a, b) =>
+                    b.value.isGreaterThan(a.value) ? 0 : -1,
                   );
-
-                  return;
                 }
+
+                const involvedAddresses = new Set([
+                  createdContract.deployer,
+                  createdContract.address,
+                  ...Object.keys(totalBalanceChangesByAccount),
+                  ...receipt.logs.map((l) => l.address.toLowerCase()),
+                ]);
+
+                data.findings.push(
+                  createExploitFunctionFinding(
+                    sighash,
+                    calldata,
+                    createdContract.address,
+                    createdContract.deployer,
+                    tokensByAccount,
+                    [...involvedAddresses],
+                    data.developerAbbreviation,
+                  ),
+                );
+
+                return;
               }
             }
           } catch (e: any) {
