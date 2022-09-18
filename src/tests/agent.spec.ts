@@ -69,6 +69,7 @@ describe('attack simulation', () => {
       data.developerAbbreviation = 'AK';
       data.logger = new Logger(LoggerLevel.DEBUG);
       data.isDevelopment = true;
+      data.isDebug = false;
       data.isInitialized = true;
       handleContract = provideHandleContract(data, () => web3Provider);
     });

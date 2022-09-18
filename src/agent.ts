@@ -26,6 +26,7 @@ const provideInitialize = (
   return async function initialize() {
     data.developerAbbreviation = config.developerAbbreviation;
     data.isDevelopment = process.env.NODE_ENV !== 'production';
+    data.isDebug = process.env.DEBUG === '1';
     data.provider = getEthersProvider();
     data.queue = queue(async (createdContract, cb) => {
       await handleContract(createdContract);
@@ -231,6 +232,10 @@ const provideHandleTransaction = (data: DataContainer): HandleTransaction => {
     const createdContracts: CreatedContract[] = getCreatedContracts(txEvent);
 
     data.queue.push(createdContracts);
+
+    if (data.isDebug) {
+      await data.queue.drain();
+    }
 
     return data.findings.splice(0);
   };

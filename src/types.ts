@@ -43,5 +43,6 @@ export type DataContainer = {
   findings: Finding[];
   developerAbbreviation: string;
   isDevelopment: boolean;
+  isDebug: boolean;
   isInitialized: boolean;
 };

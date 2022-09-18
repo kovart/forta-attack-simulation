@@ -87,13 +87,10 @@ Chains with support for [Trace API](https://openethereum.github.io/JSONRPC-trace
 
 ## Test Data
 
-Since the bot uses the [Long Running Tasks](https://docs.forta.network/en/latest/long-running-tasks/) pattern,
-the alerts are fired with a delay.
-
-You can verify the work of the agent by running it in the following block range:
+You can verify the work of the agent by running it with the following transaction:
 
 ```bash
-$ npm run range 14684300..14684400
+$ npm run tx 0x494b578bce7572e4fb8b1357ddf12754a28eec3439a62f6b14432dacda9cbb76
 ```
 
 The result should be a finding of the Saddle Finance attack.
