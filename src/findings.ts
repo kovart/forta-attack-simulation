@@ -30,7 +30,7 @@ export const createExploitFunctionFinding = (
     description:
       `Invocation of the function ${sighash} of the created contract ${contractAddress} ` +
       `leads to large balance increase in the contract deployer or function invoker account. ` +
-      `Tokens Transferred: ${formatTokens(balanceChanges[deployerAddress])}`,
+      `Tokens transferred: ${formatTokens(balanceChanges[deployerAddress])}`,
     type: FindingType.Exploit,
     severity: FindingSeverity.Critical,
     addresses: addresses,

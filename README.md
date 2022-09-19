@@ -101,7 +101,7 @@ The result should be a finding of the Saddle Finance attack.
 ```js
 Finding {
   "name": "Potential Exploit Function",
-  "description": "Invocation of the function 0xaf8271f7 of the created contract 0x7336f819775b1d31ea472681d70ce7a903482191 leads to large balance increase in the contract deployer or function invoker account. Tokens Transferred: 3,375.538166306826437272 WETH",
+  "description": "Invocation of the function 0xaf8271f7 of the created contract 0x7336f819775b1d31ea472681d70ce7a903482191 leads to large balance increase in the contract deployer or function invoker account. Tokens transferred: 3,375.538166306826437272 WETH",
   "alertId": "AK-ATTACK-SIMULATION-0",
   "protocol": "ethereum",
   "severity": "Critical",
@@ -146,7 +146,7 @@ The result should be a finding of the Devour attack.
 ```js
 Finding {
   "name": "Potential Exploit Function",
-  "description": "Invocation of the function 0x58581246 of the created contract 0x9e7f9123ce12060ec844ac56de047cc50a827201 leads to large balance increase in the contract deployer or function invoker account. Tokens Transferred: 12.597815986560374826 ETH",
+  "description": "Invocation of the function 0x58581246 of the created contract 0x9e7f9123ce12060ec844ac56de047cc50a827201 leads to large balance increase in the contract deployer or function invoker account. Tokens transferred: 12.597815986560374826 ETH",
   "alertId": "AK-ATTACK-SIMULATION-0",
   "protocol": "ethereum",
   "severity": "Critical",
