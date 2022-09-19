@@ -14,7 +14,7 @@ and tracks any changes in the attacker's balance, allowing it to detect a potent
 This bot keeps track of all the changes in the balances of the native, ERC20, ERC721 and ERC1155 tokens that have left their traces in the transaction logs. 
 It also takes into account negative changes in balances, as they help detect attacked projects, 
 as well as include these addresses in the alert, 
-which can notify projects before the exloit is used, keeping the assets intact. 
+which can notify projects before the exploit is used, keeping the assets intact. 
 
 ---
 
