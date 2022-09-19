@@ -1,8 +1,8 @@
+import BigNumber from 'bignumber.js';
 import { Finding } from 'forta-agent';
 import { providers } from 'ethers';
 import { QueueObject } from 'async';
 import { Logger } from './logger';
-import BigNumber from 'bignumber.js';
 
 export enum TokenInterface {
   NATIVE = 'native',
@@ -40,6 +40,7 @@ export type DataContainer = {
   provider: providers.JsonRpcProvider;
   queue: QueueObject<CreatedContract>;
   tokensConfig: TrackableTokensConfig;
+  payableFunctionEtherValue: number;
   findings: Finding[];
   developerAbbreviation: string;
   isDevelopment: boolean;

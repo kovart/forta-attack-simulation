@@ -24,7 +24,7 @@ export function getEthersForkProvider(blockNumber: number, unlockedAccounts: str
       },
       wallet: {
         totalAccounts: 1,
-        defaultBalance: 100000,
+        defaultBalance: 100_000_000_000,
         unlockedAccounts: unlockedAccounts,
       },
     }) as any,

@@ -36,11 +36,14 @@ Supported token standards: native (e.g. ETH, MATIC), ERC20, ERC721, ERC1155.
 An important configuration parameter is the `threshold` field, which is specified for each of the tokens separately. 
 For ERC721, ERC1155 tokens, it defines the threshold value of total number of inner tokens. For example, by setting `threshold` to `10` for an ERC721 token, the bot will fire an alert if it detects that an account has taken ownership of 11 different tokens (token IDs). For ERC1155 tokens, the bot also takes into account the value of each of the internal tokens, and sums them into one number.
 
+
+
 #### Example
 
 ```json
 {
   "developerAbbreviation": "AK",
+  "payableFunctionEtherValue": "1",
   "chains": {
     "1": {
       "native": {
@@ -87,7 +90,7 @@ Chains with support for [Trace API](https://openethereum.github.io/JSONRPC-trace
 
 ## Test Data
 
-You can verify the work of the agent by running it with the following transaction:
+You can verify the work of the agent by running it with the following transactions:
 
 ```bash
 $ npm run tx 0x494b578bce7572e4fb8b1357ddf12754a28eec3439a62f6b14432dacda9cbb76
@@ -129,4 +132,43 @@ Finding {
   ]
 }
 
+```
+
+---
+
+```bash
+$ npm run tx 0xb00e71f0e812d383b618cf316a9ccf30a0c9c7f0036a469a32e651aba591bd7d
+```
+
+
+The result should be a finding of the Devour attack.
+
+```js
+Finding {
+  "name": "Potential Exploit Function",
+  "description": "Invocation of the function 0x58581246 of the created contract 0x9e7f9123ce12060ec844ac56de047cc50a827201 leads to large balance increase in the contract deployer or function invoker account. Tokens Transferred: 12.597815986560374826 ETH",
+  "alertId": "AK-ATTACK-SIMULATION-0",
+  "protocol": "ethereum",
+  "severity": "Critical",
+  "type": "Exploit",
+  "metadata": {
+    "sighash": "0x58581246",
+    "calldata": "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000",
+    "contractAddress": "0x9e7f9123ce12060ec844ac56de047cc50a827201",
+    "deployerAddress": "0x9448368ff76b6698c59ca940b1ee2bf7fba0bc21",
+    "balanceChanges": "{\"0x7a250d5630b4cf539739df2c5dacb4c659f2488d\":[{\"name\":\"WETH\",\"type\":\"ERC20\",\"decimals\":18,\"address\":\"0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2\",\"value\":\"12597815986560374826\"}],\"0xf0fce5d65a42470a314fb440327cf564cca7c9d9\":[{\"name\":\"WETH\",\"type\":\"ERC20\",\"decimals\":18,\"address\":\"0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2\",\"value\":\"133700055419679093\"},{\"name\":\"RESTAURANTS\",\"type\":\"ERC20\",\"decimals\":18,\"address\":\"0xdffc63f92c939deb112d88735ade3b4d21b6d491\",\"value\":\"-9.7e+30\"}],\"0x9e7f9123ce12060ec844ac56de047cc50a827201\":[{\"name\":\"DPAY\",\"type\":\"ERC20\",\"decimals\":18,\"address\":\"0xe5a733681bbe6cd8c764bb8078ef8e13a576dd78\",\"value\":\"0\"},{\"name\":\"RESTAURANTS\",\"type\":\"ERC20\",\"decimals\":18,\"address\":\"0xdffc63f92c939deb112d88735ade3b4d21b6d491\",\"value\":\"-2.70081024307292187656296889e+27\"}],\"0xdffc63f92c939deb112d88735ade3b4d21b6d491\":[{\"name\":\"RESTAURANTS\",\"type\":\"ERC20\",\"decimals\":18,\"address\":\"0xdffc63f92c939deb112d88735ade3b4d21b6d491\",\"value\":\"5e+29\"}],\"0x000000000000000000000000000000000000dead\":[{\"name\":\"RESTAURANTS\",\"type\":\"ERC20\",\"decimals\":18,\"address\":\"0xdffc63f92c939deb112d88735ade3b4d21b6d491\",\"value\":\"2e+29\"}],\"0x308ad7d6e99a36a516ca311510f62052c336084d\":[{\"name\":\"RESTAURANTS\",\"type\":\"ERC20\",\"decimals\":18,\"address\":\"0xdffc63f92c939deb112d88735ade3b4d21b6d491\",\"value\":\"9.00270081024307292187656296889e+30\"},{\"name\":\"DPAY\",\"type\":\"ERC20\",\"decimals\":18,\"address\":\"0xe5a733681bbe6cd8c764bb8078ef8e13a576dd78\",\"value\":\"-9.002700810243072921876562e+24\"}],\"0x4cbcff3e46a106793a972ea7051dfd028f34517a\":[{\"name\":\"DPAY\",\"type\":\"ERC20\",\"decimals\":18,\"address\":\"0xe5a733681bbe6cd8c764bb8078ef8e13a576dd78\",\"value\":\"9.002700810243072921876562e+24\"},{\"name\":\"WETH\",\"type\":\"ERC20\",\"decimals\":18,\"address\":\"0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2\",\"value\":\"-12731516041980053919\"}],\"0x9448368ff76b6698c59ca940b1ee2bf7fba0bc21\":[{\"name\":\"ETH\",\"type\":\"native\",\"decimals\":18,\"address\":\"native\",\"value\":\"12597815986560374826\"}]}"
+  },
+  "addresses": [
+    "0x9448368ff76b6698c59ca940b1ee2bf7fba0bc21",
+    "0x9e7f9123ce12060ec844ac56de047cc50a827201",
+    "0x7a250d5630b4cf539739df2c5dacb4c659f2488d",
+    "0xf0fce5d65a42470a314fb440327cf564cca7c9d9",
+    "0xdffc63f92c939deb112d88735ade3b4d21b6d491",
+    "0x000000000000000000000000000000000000dead",
+    "0x308ad7d6e99a36a516ca311510f62052c336084d",
+    "0x4cbcff3e46a106793a972ea7051dfd028f34517a",
+    "0xe5a733681bbe6cd8c764bb8078ef8e13a576dd78",
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+  ]
+}
 ```
