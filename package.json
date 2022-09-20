@@ -23,6 +23,7 @@
     "keyfile": "forta-agent keyfile",
     "start:docker": "docker run --rm -it $(docker build -q .)",
     "test": "jest",
+    "test:real-world": "jest src/tests/agent.real.spec.ts",
     "lint": "eslint src/",
     "prepare": "husky install"
   },
