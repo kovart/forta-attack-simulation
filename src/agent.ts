@@ -105,7 +105,12 @@ const provideHandleContract = (
               // if we are here, then we successfully completed the transaction
               if (!isSignatureFound) {
                 isSignatureFound = true;
-                data.logger.debug('Found signature by success transaction', createdContract.address, sighash, calldata);
+                data.logger.debug(
+                  'Signature found by success transaction',
+                  createdContract.address,
+                  sighash,
+                  calldata,
+                );
               }
 
               // get all token transfers caused by the transaction (including native ETH)
@@ -133,9 +138,22 @@ const provideHandleContract = (
               for (const [tokenAddress, token] of Object.entries(data.tokensConfig)) {
                 const numerator = new BigNumber(10).pow(token.decimals || 0);
                 const threshold = new BigNumber(token.threshold).multipliedBy(numerator);
-                const value =
+
+                let value =
                   totalBalanceChangesByAccount[createdContract.deployer]?.[tokenAddress] ||
                   new BigNumber(0);
+
+                if (tokenAddress === 'native') {
+                  const contractOutEthers =
+                    totalBalanceChangesByAccount[createdContract.address]?.['native'] ||
+                    new BigNumber(0);
+
+                  // check if the deployer withdraws his ethers back from the contract
+                  if (contractOutEthers.isNegative()) {
+                    // if so, then subtract the ethers that come back
+                    value = value.plus(contractOutEthers);
+                  }
+                }
 
                 if (value.isGreaterThan(threshold)) {
                   const tokensByAccount: { [account: string]: TokenInfo[] } = {};
@@ -207,7 +225,12 @@ const provideHandleContract = (
 
               // check if we faced with error caused by function execution (inner error)
               if (!isSignatureFound && (e.data.reason || e.data.result?.length > 2)) {
-                data.logger.debug('Found signature by changed revert', createdContract.address, sighash, calldata);
+                data.logger.debug(
+                  'Signature found by changed revert',
+                  createdContract.address,
+                  sighash,
+                  calldata,
+                );
                 isSignatureFound = true;
               }
 
