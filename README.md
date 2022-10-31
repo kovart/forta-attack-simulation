@@ -36,7 +36,7 @@ The bot also supports calling of `payable` functions, to which it sends the amou
 You can configure the agent in the [bot-config.json](./bot-config.json) file.
 Supported token standards: native (e.g. ETH, MATIC), ERC20, ERC721, ERC1155.
 
-For native and ers20 tokens, the threshold value is specified in dollars. 
+For native and ERC20 tokens, the threshold value is specified in dollars. 
 As soon as the total amount of dollars exceeds the threshold, the bot fires an alert.
 You can specify this threshold value in `totalUsdTransferThreshold` field.
 
