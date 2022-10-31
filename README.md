@@ -6,7 +6,7 @@ The agent detects deployment of smart contracts containing an exploit function.
 
 Using a [simulation-based approach](https://forta.org/blog/attack-simulation/),
 the bot predicts the result of function execution within a local blockchain fork
-and tracks any changes in balance of EOAs and the attacker's contract, allowing it to detect a potential attack before it occurs.
+and tracks any changes in balances of EOAs and the attacker's contract, allowing it to detect a potential attack before it occurs.
 
 ---
 
