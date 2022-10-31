@@ -166,7 +166,7 @@ const provideHandleContract = (
                 // check whether the account is related to a potential exploiter
                 // or it is an unknown EOA
                 if (![createdContract.address, createdContract.deployer].includes(account)) {
-                  const isEOA = (await provider.getCode(account)) !== '0x';
+                  const isEOA = (await provider.getCode(account)) === '0x';
                   if (!isEOA) continue;
                 }
 
