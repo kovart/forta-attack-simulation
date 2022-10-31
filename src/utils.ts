@@ -1,11 +1,14 @@
-import { BigNumber as EtherBigNumber, ethers, utils } from 'ethers';
-import { EVM } from 'evm';
+import axios from 'axios';
 import Ganache from 'ganache';
-import { getJsonRpcUrl, TransactionEvent } from 'forta-agent';
-import { BaseN } from 'js-combinatorics';
-import { CreatedContract, TokenInterface } from './types';
 import BigNumber from 'bignumber.js';
+import { BigNumber as EtherBigNumber, ethers, utils } from 'ethers';
 import { LogDescription } from 'ethers/lib/utils';
+import { EVM } from 'evm';
+import { getJsonRpcUrl, Network, TransactionEvent } from 'forta-agent';
+import { BaseN } from 'js-combinatorics';
+import LRU from 'lru-cache';
+import { CreatedContract, TokenInterface } from './types';
+import { Logger } from './logger';
 import Erc20Abi from './abi/erc20.json';
 import Erc721Abi from './abi/erc721.json';
 import Erc1155Abi from './abi/erc1155.json';
@@ -13,6 +16,20 @@ import Erc1155Abi from './abi/erc1155.json';
 const erc20Iface = new ethers.utils.Interface(Erc20Abi);
 const erc721Iface = new ethers.utils.Interface(Erc721Abi);
 const erc1155Iface = new ethers.utils.Interface(Erc1155Abi);
+
+// it helps not to make a lot of requests for the same token
+const coinPriceCache = new LRU({
+  max: 300, // addresses
+  ttl: 60 * 60 * 1000, // 60 min
+  fetchMethod: async (coinKey: string, _, { context = {} }) => {
+    const { data } = await axios.get(`https://coins.llama.fi/prices/current/${coinKey}`);
+    const price = data.coins[coinKey]?.price;
+    if (price == null) {
+      context.logger?.info('Unknown token price', coinKey);
+    }
+    return price;
+  },
+});
 
 export function getEthersForkProvider(blockNumber: number, unlockedAccounts: string[]) {
   return new ethers.providers.Web3Provider(
@@ -207,21 +224,69 @@ export async function getBalanceChanges(params: {
     }
   }
 
-  return { balanceChangesByAccount, interfacesByToken };
+  return {
+    balanceChangesByAddress: balanceChangesByAccount,
+    interfacesByTokenAddress: interfacesByToken,
+  };
+}
+
+// version with summed token balances
+export async function getTotalBalanceChanges(params: {
+  tx: ethers.providers.TransactionResponse;
+  receipt: ethers.providers.TransactionReceipt;
+  provider: ethers.providers.Web3Provider;
+}) {
+  const { tx, receipt, provider } = params;
+  // get all token transfers caused by the transaction (including native token)
+  const { interfacesByTokenAddress, balanceChangesByAddress } = await getBalanceChanges({
+    tx,
+    receipt,
+    provider,
+  });
+
+  // simplify balances by summing amount of erc721 and erc1155 tokens
+  const totalBalanceChangesByAccount: {
+    [account: string]: { [tokenAddress: string]: BigNumber };
+  } = {};
+  const getSum = (obj: { [x: string]: BigNumber }) =>
+    Object.values(obj).reduce((a, b) => a.plus(b), new BigNumber(0));
+  for (const account of Object.keys(balanceChangesByAddress)) {
+    totalBalanceChangesByAccount[account] = totalBalanceChangesByAccount[account] || {};
+    for (const tokenAddress of Object.keys(balanceChangesByAddress[account])) {
+      totalBalanceChangesByAccount[account][tokenAddress] = getSum(
+        balanceChangesByAddress[account][tokenAddress],
+      );
+    }
+  }
+
+  return { interfacesByTokenAddress, totalBalanceChangesByAddress: totalBalanceChangesByAccount };
 }
 
 export async function getTokenNames(params: {
   addresses: string[];
   knownTokens?: { [address: string]: { name?: string } };
   provider: ethers.providers.Web3Provider;
+  chainId: Network;
 }) {
-  const { addresses, knownTokens = {}, provider } = params;
+  const { addresses, knownTokens = {}, provider, chainId } = params;
   const map: { [address: string]: string } = {};
+
+  const nativeTokenByChainId: { [chainId: number]: string } = {
+    [Network.MAINNET]: 'ETH',
+    [Network.BSC]: 'BNB',
+    [Network.POLYGON]: 'MATIC',
+    [Network.ARBITRUM]: 'ETH',
+  };
 
   await Promise.all(
     addresses.map(async (address) => {
       if (knownTokens[address]?.name) {
         map[address] = knownTokens[address].name!;
+        return;
+      }
+
+      if (address === 'native') {
+        map[address] = nativeTokenByChainId[chainId];
         return;
       }
 
@@ -262,6 +327,12 @@ export async function getTokenDecimals(params: {
     addresses.map(async (address) => {
       if (knownTokens[address]?.decimals != null) {
         map[address] = knownTokens[address].decimals!;
+        return;
+      }
+
+      // TODO Have all native tokens 18 decimals?
+      if (address === 'native') {
+        map[address] = 18;
         return;
       }
 
@@ -317,4 +388,40 @@ export function getCreatedContracts(txEvent: TransactionEvent): CreatedContract[
   }
 
   return createdContracts;
+}
+
+export async function getNativeTokenPrice(
+  network: Network,
+  logger?: Logger,
+): Promise<number | undefined> {
+  if (network !== Network.MAINNET) throw new Error('Not implemented yet: ' + Network[network]);
+
+  try {
+    const coinKey = 'coingecko:ethereum';
+    return coinPriceCache.fetch(coinKey, { fetchContext: { logger } });
+  } catch (e) {
+    logger?.error(e);
+  }
+}
+
+export async function getErc20TokenPrice(
+  network: Network,
+  address: string,
+  logger?: Logger,
+): Promise<number | undefined> {
+  const chainKeysByNetwork: { [x: number]: string } = {
+    [Network.MAINNET]: 'ethereum',
+    [Network.BSC]: 'bsc',
+    [Network.POLYGON]: 'polygon',
+    [Network.ARBITRUM]: 'arbitrum',
+  };
+
+  if (!chainKeysByNetwork[network]) throw new Error('Not implemented yet: ' + Network[network]);
+
+  try {
+    const coinKey = `${chainKeysByNetwork[network]}:${address}`;
+    return coinPriceCache.fetch(coinKey, { fetchContext: { logger } });
+  } catch (e) {
+    logger?.error(e);
+  }
 }

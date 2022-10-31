@@ -12,17 +12,11 @@ export enum TokenInterface {
 }
 
 export type TokenInfo = {
-  name: string;
+  name?: string;
   type: TokenInterface;
   address: string;
   decimals?: number;
   value: BigNumber;
-};
-
-export type TrackableToken = {
-  threshold: number | string;
-  name?: string;
-  decimals?: number;
 };
 
 export type CreatedContract = {
@@ -33,15 +27,20 @@ export type CreatedContract = {
 
 export type HandleContract = (createdContract: CreatedContract) => Promise<void>;
 
-export type TrackableTokensConfig = { [tokenAddress: string | 'native']: TrackableToken };
-
 export type DataContainer = {
   logger: Logger;
   provider: providers.JsonRpcProvider;
   queue: QueueObject<CreatedContract>;
-  tokensConfig: TrackableTokensConfig;
   payableFunctionEtherValue: number;
+  totalUsdTransferThreshold: BigNumber;
+  totalTokensThresholdsByAddress: {
+    [tokenAddress: string]: {
+      name: string;
+      threshold: BigNumber;
+    };
+  };
   findings: Finding[];
+  chainId: number;
   developerAbbreviation: string;
   isDevelopment: boolean;
   isDebug: boolean;

@@ -2,19 +2,20 @@
 
 ## Description
 
-The agent detects deployment of smart contracts containing an exploit function. 
+The agent detects deployment of smart contracts containing an exploit function.
 
-Using a [simulation-based approach](https://forta.org/blog/attack-simulation/), 
-the bot predicts the result of function execution within a local blockchain fork 
-and tracks any changes in the attacker's balance, allowing it to detect a potential attack before it occurs.
-
+Using a [simulation-based approach](https://forta.org/blog/attack-simulation/),
+the bot predicts the result of function execution within a local blockchain fork
+and tracks any changes in balance of EOAs and the attacker's contract, allowing it to detect a potential attack before it occurs.
 
 ---
 
-This bot keeps track of all the changes in the balances of the native, ERC20, ERC721 and ERC1155 tokens that have left their traces in the transaction logs. 
-It also takes into account negative changes in balances, as they help detect attacked projects, 
-as well as include these addresses in the alert, 
-which can notify projects before the exploit is used, keeping the assets intact. 
+This bot keeps track of all the changes in the balances of the native, ERC20, ERC721 and ERC1155 tokens that have left their traces in the transaction logs.
+It also takes into account negative changes in balances, as they help detect attacked projects,
+as well as include these addresses in the alert, which can notify projects before the exploit is used, keeping the assets intact.
+
+> At the moment, due to Ganache limitations, the bot cannot track changes in the native balance of EOAs (e.g. ETH, MATIC),
+> unless the EOAs were seen in ERC20, ERC721, ERC1155 token events.
 
 ---
 
@@ -22,20 +23,28 @@ The bot scans each transaction for contract creation (including contracts create
 As soon as new contracts are detected, their code is fetched and translated into OPCODE.
 This instruction machine code allows to find possible function selectors (4bytes) without having the [contract ABI](https://docs.soliditylang.org/en/v0.8.13/abi-spec.html).
 
-The bot then launches a local fork of the blockchain, within which it tries to mimic the execution of the functions observing changes in the token balances. 
+The bot then launches a local fork of the blockchain, within which it tries to mimic the execution of the functions observing changes in the token balances.
 To bring the simulation closer to real life, the bot performs transactions on behalf of the account that deployed the contract.
 
-While most exploit functions do not take any parameters, the bot tries to cover cases where the function can take up to 5 different parameters. 
-It uses a clever way of determining the number of parameters, after which it is fuzzing them, shuffling potential values in various quantities. 
+While most exploit functions do not take any parameters, the bot tries to cover cases where the function can take up to 5 different parameters.
+It uses a clever way of determining the number of parameters, after which it is fuzzing them, shuffling potential values in various quantities.
+
+The bot also supports calling of `payable` functions, to which it sends the amount of ether specified in the [configuration file](./bot-config.json).
 
 ## Configuration
 
 You can configure the agent in the [bot-config.json](./bot-config.json) file.
 Supported token standards: native (e.g. ETH, MATIC), ERC20, ERC721, ERC1155.
 
-An important configuration parameter is the `threshold` field, which is specified for each of the tokens separately. 
-For ERC721, ERC1155 tokens, it defines the threshold value of total number of inner tokens. For example, by setting `threshold` to `10` for an ERC721 token, the bot will fire an alert if it detects that an account has taken ownership of 11 different tokens (token IDs). For ERC1155 tokens, the bot also takes into account the value of each of the internal tokens, and sums them into one number.
+For native and ers20 tokens, the threshold value is specified in dollars. 
+As soon as the total amount of dollars exceeds the threshold, the bot fires an alert.
+You can specify this threshold value in `totalUsdTransferThreshold` field.
 
+To determine the USD value of tokens, the [DefiLlama Api](https://defillama.com/docs/api) is used.
+
+For tokens ERC721, ERC1155, the bot uses a threshold based on the total number of transferred tokens.
+For example, by setting `threshold` to `10` for an ERC721 token, the bot will fire an alert if it detects that an account has taken ownership of 11 different tokens (token IDs). 
+For ERC1155 tokens, the bot also takes into account the value of each of the internal tokens, and sums them into one number.
 
 
 #### Example
@@ -43,26 +52,17 @@ For ERC721, ERC1155 tokens, it defines the threshold value of total number of in
 ```json
 {
   "developerAbbreviation": "AK",
-  "payableFunctionEtherValue": "1",
-  "chains": {
+  "payableFunctionEtherValue": "10",
+  "totalUsdTransferThreshold": "30000",
+  "totalTokensThresholdsByChain": {
     "1": {
-      "native": {
-        "name": "ETH",
-        "decimals": 18,
-        "threshold": 10
-      },
-      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": {
-        "name": "WETH",
-        "decimals": 18,
-        "threshold": 10
-      },
       "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85": {
         "name": "ENS",
-        "threshold": 50
+        "threshold": 10
       },
       "0x495f947276749Ce646f68AC8c248420045cb7b5e": {
         "name": "OpenSea Shared Storefront",
-        "threshold": 50
+        "threshold": 10
       }
     }
   }
@@ -78,7 +78,7 @@ Chains with support for [Trace API](https://openethereum.github.io/JSONRPC-trace
 ## Alerts
 
 - AK-ATTACK-SIMULATION-0
-  - Fired when an invoking function causes a large balance increase in the deployer or function invoker account
+  - Fired when an invoking function causes a large balance increase in an EOA or the contract containing the invoked function
   - Severity is always set to `critical`
   - Type is always set to `exploit`
   - Metadata:
@@ -86,6 +86,7 @@ Chains with support for [Trace API](https://openethereum.github.io/JSONRPC-trace
     - `calldata` - function calldata
     - `contractAddress` - address of the deployed contract
     - `deployerAddress` - address of the contract deployer
+    - `fundedAddress` - address where the significant increase in the balance has been found
     - `balanceChanges` - map object with arrays of balance changes for each account
 
 ## Test Data
@@ -139,7 +140,6 @@ Finding {
 ```bash
 $ npm run tx 0xb00e71f0e812d383b618cf316a9ccf30a0c9c7f0036a469a32e651aba591bd7d
 ```
-
 
 The result should be a finding of the Devour attack.
 

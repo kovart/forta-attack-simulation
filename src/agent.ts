@@ -2,19 +2,10 @@ import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
 import { queue } from 'async';
 import { getEthersProvider, HandleTransaction, Initialize, TransactionEvent } from 'forta-agent';
-import {
-  generateCallData,
-  getBalanceChanges,
-  getCreatedContracts,
-  getEthersForkProvider,
-  getSighashes,
-  getTokenDecimals,
-  getTokenNames,
-} from './utils';
+import * as botUtils from './utils';
 import { Logger, LoggerLevel } from './logger';
 import { CreatedContract, DataContainer, HandleContract, TokenInfo, TokenInterface } from './types';
 import { createExploitFunctionFinding } from './findings';
-import { parseEther } from 'ethers/lib/utils';
 
 const data: DataContainer = {} as any;
 const botConfig = require('../bot-config.json');
@@ -35,11 +26,13 @@ const provideInitialize = (
       cb();
     }, 1);
     data.findings = [];
-    data.tokensConfig = {};
-    const chainId = (await data.provider.getNetwork()).chainId;
+    data.totalUsdTransferThreshold = new BigNumber(config.totalUsdTransferThreshold);
+    data.totalTokensThresholdsByAddress = {};
+    data.chainId = (await data.provider.getNetwork()).chainId;
     // normalize token addresses
-    Object.keys(config.chains[chainId]).forEach((tokenAddress) => {
-      data.tokensConfig[tokenAddress.toLowerCase()] = config.chains[chainId][tokenAddress];
+    Object.keys(config.totalTokensThresholdsByChain[data.chainId]).forEach((tokenAddress) => {
+      data.totalTokensThresholdsByAddress[tokenAddress.toLowerCase()] =
+        config.totalTokensThresholdsByChain[data.chainId][tokenAddress];
     });
     data.logger = new Logger(data.isDevelopment ? LoggerLevel.DEBUG : LoggerLevel.WARN);
     data.isInitialized = true;
@@ -50,12 +43,33 @@ const provideInitialize = (
 
 const provideHandleContract = (
   data: DataContainer,
-  getForkedProvider: typeof getEthersForkProvider,
+  utils: Pick<
+    typeof botUtils,
+    | 'generateCallData'
+    | 'getTotalBalanceChanges'
+    | 'getSighashes'
+    | 'getTokenDecimals'
+    | 'getTokenNames'
+    | 'getEthersForkProvider'
+    | 'getNativeTokenPrice'
+    | 'getErc20TokenPrice'
+  >,
 ): HandleContract => {
   return async function handleContract(createdContract: CreatedContract) {
     data.logger.debug('Contract', createdContract.address);
 
-    const provider = getForkedProvider(createdContract.blockNumber, [
+    const {
+      generateCallData,
+      getTotalBalanceChanges,
+      getSighashes,
+      getEthersForkProvider,
+      getTokenDecimals,
+      getTokenNames,
+      getNativeTokenPrice,
+      getErc20TokenPrice,
+    } = utils;
+
+    const provider = getEthersForkProvider(createdContract.blockNumber, [
       createdContract.deployer, // we use deployer address as a transaction sender
     ]);
     const contractCode = await provider.getCode(
@@ -81,7 +95,7 @@ const provideHandleContract = (
     // some functions require sending a certain amount of ether,
     // e.g. https://etherscan.io/tx/0xaf961653906aa831fa1ff7876fa6eecc10e415c7c2bffec69ee26e02bde6f4fc
     // so we iterate value for payable and non-payable functions
-    for (const value of [parseEther('10'), 0]) {
+    for (const value of [ethers.utils.parseEther(data.payableFunctionEtherValue.toString()), 0]) {
       data.logger.debug('Transaction value', value.toString());
       for (const sighash of sighashes) {
         data.logger.debug('Function', sighash);
@@ -95,6 +109,7 @@ const provideHandleContract = (
             addresses: [createdContract.deployer],
           })) {
             try {
+              // execute transaction
               const tx = await provider.getSigner(createdContract.deployer).sendTransaction({
                 to: createdContract.address,
                 data: sighash + calldata,
@@ -113,108 +128,142 @@ const provideHandleContract = (
                 );
               }
 
-              // get all token transfers caused by the transaction (including native ETH)
-              const { interfacesByToken, balanceChangesByAccount } = await getBalanceChanges({
-                tx,
-                receipt,
-                provider,
-              });
+              // get all token transfers caused by the transaction (including native token)
+              const { interfacesByTokenAddress, totalBalanceChangesByAddress } = await getTotalBalanceChanges(
+                {
+                  tx,
+                  receipt,
+                  provider,
+                },
+              );
 
-              // simplify balances by summing values of the inner tokens (erc721, erc1155)
-              const totalBalanceChangesByAccount: {
-                [account: string]: { [tokenAddress: string]: BigNumber };
-              } = {};
-              for (const account of Object.keys(balanceChangesByAccount)) {
-                totalBalanceChangesByAccount[account] = totalBalanceChangesByAccount[account] || {};
-                for (const tokenAddress of Object.keys(balanceChangesByAccount[account])) {
-                  const getSum = (obj: { [x: string]: BigNumber }) =>
-                    Object.values(obj).reduce((a, b) => a.plus(b), new BigNumber(0));
-                  totalBalanceChangesByAccount[account][tokenAddress] = getSum(
-                    balanceChangesByAccount[account][tokenAddress],
-                  );
+              // get token prices
+              const tokenPriceByAddress: { [address: string]: number | undefined } = {};
+              for (const address of Object.keys(interfacesByTokenAddress)) {
+                let price: number | undefined;
+                if (interfacesByTokenAddress[address] === TokenInterface.NATIVE) {
+                  price = await getNativeTokenPrice(data.chainId, data.logger);
+                } else if (interfacesByTokenAddress[address] === TokenInterface.ERC20) {
+                  price = await getErc20TokenPrice(data.chainId, address, data.logger);
                 }
+                tokenPriceByAddress[address] = price;
               }
 
-              for (const [tokenAddress, token] of Object.entries(data.tokensConfig)) {
-                const numerator = new BigNumber(10).pow(token.decimals || 0);
-                const threshold = new BigNumber(token.threshold).multipliedBy(numerator);
+              const decimalsByToken = await getTokenDecimals({
+                addresses: Object.entries(interfacesByTokenAddress)
+                  .filter(([, type]) =>
+                    [TokenInterface.ERC20, TokenInterface.NATIVE].includes(type),
+                  )
+                  .map(([address]) => address),
+                provider: provider,
+              });
 
-                let value =
-                  totalBalanceChangesByAccount[createdContract.deployer]?.[tokenAddress] ||
-                  new BigNumber(0);
+              let highlyFundedAccount: string | null = null;
 
-                if (tokenAddress === 'native') {
-                  const contractOutEthers =
-                    totalBalanceChangesByAccount[createdContract.address]?.['native'] ||
-                    new BigNumber(0);
-
-                  // check if the deployer withdraws his ethers back from the contract
-                  if (contractOutEthers.isNegative()) {
-                    // if so, then subtract the ethers that come back
-                    value = value.plus(contractOutEthers);
-                  }
+              for (const [account, balanceByTokenAddress] of Object.entries(
+                totalBalanceChangesByAddress,
+              )) {
+                // check whether the account is related to a potential exploiter
+                // or it is an unknown EOA
+                if (![createdContract.address, createdContract.deployer].includes(account)) {
+                  const isEOA = (await provider.getCode(account)) !== '0x';
+                  if (!isEOA) continue;
                 }
 
-                if (value.isGreaterThan(threshold)) {
-                  const tokensByAccount: { [account: string]: TokenInfo[] } = {};
-                  const namesByToken = await getTokenNames({
-                    addresses: Object.keys(interfacesByToken),
-                    knownTokens: data.tokensConfig,
-                    provider: provider,
-                  });
-                  const decimalsByToken = await getTokenDecimals({
-                    addresses: Object.entries(interfacesByToken)
-                      .filter(([, type]) =>
-                        [TokenInterface.ERC20, TokenInterface.NATIVE].includes(type),
-                      )
-                      .map(([address]) => address),
-                    knownTokens: data.tokensConfig,
-                    provider: provider,
-                  });
+                let totalReceivedUsd = new BigNumber(0);
+                for (const [tokenAddress, value] of Object.entries(balanceByTokenAddress)) {
+                  let profitValue = value;
+                  const tokenType = interfacesByTokenAddress[tokenAddress];
 
-                  const createTokenInfo = (address: string, value: BigNumber): TokenInfo => ({
-                    name: namesByToken[address] || `Unknown (${address})`,
-                    type: interfacesByToken[address],
-                    decimals: decimalsByToken[address],
-                    address: address,
-                    value: value,
-                  });
+                  // check if threshold of erc721 and erc1155 tokens is exceeded
+                  if (
+                    data.totalTokensThresholdsByAddress[tokenAddress] &&
+                    profitValue.isGreaterThan(
+                      data.totalTokensThresholdsByAddress[tokenAddress].threshold,
+                    )
+                  ) {
+                    highlyFundedAccount = account;
+                    break;
+                  }
 
-                  for (const account of Object.keys(totalBalanceChangesByAccount)) {
-                    for (const tokenAddress of Object.keys(totalBalanceChangesByAccount[account])) {
-                      const token = createTokenInfo(
-                        tokenAddress,
-                        totalBalanceChangesByAccount[account][tokenAddress],
-                      );
-                      tokensByAccount[account] = tokensByAccount[account] || [];
-                      tokensByAccount[account].push(token);
+                  // this helps to get rid of false positives on the deployment of contracts with withdraw() functions
+                  if (tokenType === TokenInterface.NATIVE) {
+                    const withdrawValue =
+                      totalBalanceChangesByAddress[createdContract.address]?.[tokenAddress] ||
+                      new BigNumber(0);
+
+                    // check if the deployer withdraws his ethers back from the contract
+                    if (withdrawValue.isNegative()) {
+                      // if so, then subtract the ethers that come back
+                      profitValue = profitValue.plus(withdrawValue);
                     }
-                    tokensByAccount[account].sort((a, b) =>
-                      b.value.isGreaterThan(a.value) ? 0 : -1,
+                  }
+
+                  if ([TokenInterface.ERC20, TokenInterface.NATIVE].includes(tokenType)) {
+                    // add transferred value in USD
+                    totalReceivedUsd = totalReceivedUsd.plus(
+                      profitValue
+                        .div(new BigNumber(10).pow(decimalsByToken[tokenAddress] || 0))
+                        .multipliedBy(tokenPriceByAddress[tokenAddress] || 0),
                     );
                   }
 
-                  const involvedAddresses = new Set([
-                    createdContract.deployer,
-                    createdContract.address,
-                    ...Object.keys(totalBalanceChangesByAccount),
-                    ...receipt.logs.map((l) => l.address.toLowerCase()),
-                  ]);
-
-                  data.findings.push(
-                    createExploitFunctionFinding(
-                      sighash,
-                      calldata,
-                      createdContract.address,
-                      createdContract.deployer,
-                      tokensByAccount,
-                      [...involvedAddresses],
-                      data.developerAbbreviation,
-                    ),
-                  );
-
-                  return;
+                  // check USD threshold
+                  if (totalReceivedUsd.isGreaterThan(data.totalUsdTransferThreshold)) {
+                    highlyFundedAccount = account;
+                    break;
+                  }
                 }
+              }
+
+              // check if we found account that exceeded threshold
+              if (highlyFundedAccount) {
+                const tokensByAccount: { [account: string]: TokenInfo[] } = {};
+                const namesByToken = await getTokenNames({
+                  addresses: Object.keys(interfacesByTokenAddress),
+                  knownTokens: data.totalTokensThresholdsByAddress,
+                  provider: provider,
+                  chainId: data.chainId,
+                });
+
+                for (const account of Object.keys(totalBalanceChangesByAddress)) {
+                  for (const tokenAddress of Object.keys(totalBalanceChangesByAddress[account])) {
+                    const token: TokenInfo = {
+                      name: namesByToken[tokenAddress],
+                      type: interfacesByTokenAddress[tokenAddress],
+                      decimals: decimalsByToken[tokenAddress],
+                      address: tokenAddress,
+                      value: totalBalanceChangesByAddress[account][tokenAddress],
+                    };
+                    tokensByAccount[account] = tokensByAccount[account] || [];
+                    tokensByAccount[account].push(token);
+                  }
+                  tokensByAccount[account].sort((a, b) =>
+                    b.value.isGreaterThan(a.value) ? 0 : -1,
+                  );
+                }
+
+                const involvedAddresses = new Set([
+                  createdContract.deployer,
+                  createdContract.address,
+                  ...Object.keys(totalBalanceChangesByAddress),
+                  ...receipt.logs.map((l) => l.address.toLowerCase()),
+                ]);
+
+                data.findings.push(
+                  createExploitFunctionFinding(
+                    sighash,
+                    calldata,
+                    createdContract.address,
+                    createdContract.deployer,
+                    highlyFundedAccount,
+                    tokensByAccount,
+                    [...involvedAddresses],
+                    data.developerAbbreviation,
+                  ),
+                );
+
+                return;
               }
             } catch (e: any) {
               // if not a ganache error
@@ -256,9 +305,14 @@ const provideHandleContract = (
   };
 };
 
-const provideHandleTransaction = (data: DataContainer): HandleTransaction => {
+const provideHandleTransaction = (
+  data: DataContainer,
+  utils: Pick<typeof botUtils, 'getCreatedContracts'>,
+): HandleTransaction => {
   return async function handleTransaction(txEvent: TransactionEvent) {
     if (!data.isInitialized) throw new Error('DataContainer is not initialized');
+
+    const { getCreatedContracts } = utils;
 
     const createdContracts: CreatedContract[] = getCreatedContracts(txEvent);
 
@@ -273,12 +327,8 @@ const provideHandleTransaction = (data: DataContainer): HandleTransaction => {
 };
 
 export default {
-  initialize: provideInitialize(
-    data,
-    botConfig,
-    provideHandleContract(data, getEthersForkProvider),
-  ),
-  handleTransaction: provideHandleTransaction(data),
+  initialize: provideInitialize(data, botConfig, provideHandleContract(data, botUtils)),
+  handleTransaction: provideHandleTransaction(data, botUtils),
 
   provideInitialize,
   provideHandleTransaction,

@@ -3,7 +3,7 @@ import { Initialize } from 'forta-agent';
 const config = require('../../bot-config.json');
 
 import { DataContainer, HandleContract } from '../types';
-import { getEthersForkProvider } from '../utils';
+import * as botUtils from '../utils';
 import agent from '../agent';
 
 const { provideInitialize, provideHandleContract } = agent;
@@ -16,7 +16,7 @@ describe('real-world tests', () => {
   let initialize: Initialize;
 
   beforeAll(() => {
-    handleContract = provideHandleContract(data, getEthersForkProvider);
+    handleContract = provideHandleContract(data, botUtils);
     initialize = provideInitialize(data, config, handleContract);
   });
 
@@ -74,6 +74,15 @@ describe('real-world tests', () => {
       address: '0x9e7f9123ce12060ec844ac56de047cc50a827201',
       deployer: '0x9448368ff76b6698c59ca940b1ee2bf7fba0bc21',
       blockNumber: 15503993,
+    });
+    expect(data.findings).toHaveLength(1);
+  });
+
+  it('Olympus (OHM)', async () => {
+    await handleContract({
+      address: '0xa29e4fe451ccfa5e7def35188919ad7077a4de8f',
+      deployer: '0x443cf223e209e5a2c08114a2501d8f0f9ec7d9be',
+      blockNumber: 15794354,
     });
     expect(data.findings).toHaveLength(1);
   });
