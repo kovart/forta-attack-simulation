@@ -11,7 +11,7 @@ const { provideInitialize, provideHandleContract } = agent;
 describe('real-world tests', () => {
   jest.setTimeout(5 * 60 * 1000);
 
-  let data: DataContainer = {} as DataContainer;
+  const data: DataContainer = {} as DataContainer;
   let handleContract: HandleContract;
   let initialize: Initialize;
 
@@ -83,6 +83,15 @@ describe('real-world tests', () => {
       address: '0xa29e4fe451ccfa5e7def35188919ad7077a4de8f',
       deployer: '0x443cf223e209e5a2c08114a2501d8f0f9ec7d9be',
       blockNumber: 15794354,
+    });
+    expect(data.findings).toHaveLength(1);
+  });
+
+  it('Flashloan attack (DAI)', async () => {
+    await handleContract({
+      address: '0x3b841fa4046d2a17d9e40609ed80a76830ec0362',
+      deployer: '0xd4e10ce89c944771fb1ff173bf3b6557c692ef0d',
+      blockNumber: 16063018,
     });
     expect(data.findings).toHaveLength(1);
   });

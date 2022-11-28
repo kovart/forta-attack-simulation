@@ -1,7 +1,7 @@
 {
   "developerAbbreviation": "AK",
-  "payableFunctionEtherValue": "10",
-  "totalUsdTransferThreshold": "30000",
+  "payableFunctionEtherValue": "5",
+  "totalUsdTransferThreshold": "19000",
   "totalTokensThresholdsByChain": {
     "1": {
       "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85": {

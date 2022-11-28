@@ -1,6 +1,6 @@
 {
   "name": "ak-forta-attack-simulation-agent",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "The agent detects deployment of smart contracts containing an exploit function",
   "chainIds": [
     1
