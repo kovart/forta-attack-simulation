@@ -314,12 +314,20 @@ const provideHandleTransaction = (
   data: DataContainer,
   utils: Pick<typeof botUtils, 'getCreatedContracts'>,
 ): HandleTransaction => {
+  let lastCheckIn = 0;
+
   return async function handleTransaction(txEvent: TransactionEvent) {
     if (!data.isInitialized) throw new Error('DataContainer is not initialized');
 
     const { getCreatedContracts } = utils;
 
     const createdContracts: CreatedContract[] = getCreatedContracts(txEvent);
+
+    // log scan queue every 10 minutes
+    if (data.queue.length() >= 6 && Date.now() >= lastCheckIn + 1000 * 60 * 10) {
+      data.logger.warn('Scan queue:', data.queue.length());
+      lastCheckIn = Date.now();
+    }
 
     data.queue.push(createdContracts);
 
