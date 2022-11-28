@@ -6,6 +6,7 @@ import * as botUtils from './utils';
 import { Logger, LoggerLevel } from './logger';
 import { CreatedContract, DataContainer, HandleContract, TokenInfo, TokenInterface } from './types';
 import { createExploitFunctionFinding } from './findings';
+import { BURN_ADDRESSES } from './contants';
 
 const data: DataContainer = {} as any;
 const botConfig = require('../bot-config.json');
@@ -129,13 +130,12 @@ const provideHandleContract = (
               }
 
               // get all token transfers caused by the transaction (including native token)
-              const { interfacesByTokenAddress, totalBalanceChangesByAddress } = await getTotalBalanceChanges(
-                {
+              const { interfacesByTokenAddress, totalBalanceChangesByAddress } =
+                await getTotalBalanceChanges({
                   tx,
                   receipt,
                   provider,
-                },
-              );
+                });
 
               // get token prices
               const tokenPriceByAddress: { [address: string]: number | undefined } = {};
@@ -163,6 +163,11 @@ const provideHandleContract = (
               for (const [account, balanceByTokenAddress] of Object.entries(
                 totalBalanceChangesByAddress,
               )) {
+                // check if the account is a burn-address
+                if (account.includes('000000000000') || BURN_ADDRESSES.includes(account)) {
+                  continue;
+                }
+
                 // check whether the account is related to a potential exploiter
                 // or it is an unknown EOA
                 if (![createdContract.address, createdContract.deployer].includes(account)) {
