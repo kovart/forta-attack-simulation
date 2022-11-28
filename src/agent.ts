@@ -137,14 +137,17 @@ const provideHandleContract = (
                   provider,
                 });
 
+              const timestamp = (await data.provider.getBlock(createdContract.blockNumber))
+                .timestamp;
+
               // get token prices
               const tokenPriceByAddress: { [address: string]: number | undefined } = {};
               for (const address of Object.keys(interfacesByTokenAddress)) {
                 let price: number | undefined;
                 if (interfacesByTokenAddress[address] === TokenInterface.NATIVE) {
-                  price = await getNativeTokenPrice(data.chainId, data.logger);
+                  price = await getNativeTokenPrice(data.chainId, data.logger, timestamp);
                 } else if (interfacesByTokenAddress[address] === TokenInterface.ERC20) {
-                  price = await getErc20TokenPrice(data.chainId, address, data.logger);
+                  price = await getErc20TokenPrice(data.chainId, address, data.logger, timestamp);
                 }
                 tokenPriceByAddress[address] = price;
               }

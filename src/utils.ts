@@ -21,8 +21,12 @@ const erc1155Iface = new ethers.utils.Interface(Erc1155Abi);
 const coinPriceCache = new LRU({
   max: 300, // addresses
   ttl: 60 * 60 * 1000, // 60 min
-  fetchMethod: async (coinKey: string, _, { context = {} }) => {
-    const { data } = await axios.get(`https://coins.llama.fi/prices/current/${coinKey}`);
+  fetchMethod: async (key: string, _, { context = {} }) => {
+    const [coinKey, timestamp] = key.split('/');
+    const url = timestamp
+      ? `https://coins.llama.fi/prices/historical/${timestamp}`
+      : 'https://coins.llama.fi/prices/current';
+    const { data } = await axios.get(`${url}/${coinKey}`);
     const price = data.coins[coinKey]?.price;
     if (price == null) {
       context.logger?.info('Unknown token price', coinKey);
@@ -395,11 +399,12 @@ export function getCreatedContracts(txEvent: TransactionEvent): CreatedContract[
 export async function getNativeTokenPrice(
   network: Network,
   logger?: Logger,
+  timestamp?: number,
 ): Promise<number | undefined> {
   if (network !== Network.MAINNET) throw new Error('Not implemented yet: ' + Network[network]);
 
   try {
-    const coinKey = 'coingecko:ethereum';
+    const coinKey = ['coingecko:ethereum', timestamp].filter((v) => v).join('/');
     return coinPriceCache.fetch(coinKey, { fetchContext: { logger } });
   } catch (e) {
     logger?.error(e);
@@ -410,6 +415,7 @@ export async function getErc20TokenPrice(
   network: Network,
   address: string,
   logger?: Logger,
+  timestamp?: number,
 ): Promise<number | undefined> {
   const chainKeysByNetwork: { [x: number]: string } = {
     [Network.MAINNET]: 'ethereum',
@@ -421,7 +427,9 @@ export async function getErc20TokenPrice(
   if (!chainKeysByNetwork[network]) throw new Error('Not implemented yet: ' + Network[network]);
 
   try {
-    const coinKey = `${chainKeysByNetwork[network]}:${address}`;
+    const coinKey = [`${chainKeysByNetwork[network]}:${address}`, timestamp]
+      .filter((v) => v)
+      .join('/');
     return coinPriceCache.fetch(coinKey, { fetchContext: { logger } });
   } catch (e) {
     logger?.error(e);

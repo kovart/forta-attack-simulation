@@ -110,6 +110,7 @@ describe('attack simulation', () => {
       mockData.payableFunctionEtherValue = 10;
       mockData.chainId = testNetwork;
       mockData.logger = new Logger(LoggerLevel.DEBUG);
+      mockData.provider = web3Provider;
       mockData.isDevelopment = true;
       mockData.isDebug = false;
       mockData.isInitialized = true;
