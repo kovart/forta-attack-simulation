@@ -6,10 +6,10 @@ jest.mock('forta-agent', () => ({
 }));
 
 import { Finding, FindingSeverity, FindingType, HandleTransaction, Network } from 'forta-agent';
-import { createAddress, TestTransactionEvent } from 'forta-agent-tools/lib/tests';
+import { TestTransactionEvent } from 'forta-agent-tools/lib/tests';
 import { ethers } from 'ethers';
 import BigNumber from 'bignumber.js';
-import Ganache, { EthereumProvider, Ethereum } from 'ganache';
+import Ganache, { EthereumProvider } from 'ganache';
 import { compile, CompilerArtifact } from './utils/compiler';
 import {
   CreatedContract,
