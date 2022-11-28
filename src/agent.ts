@@ -324,8 +324,14 @@ const provideHandleTransaction = (
     const createdContracts: CreatedContract[] = getCreatedContracts(txEvent);
 
     // log scan queue every 10 minutes
-    if (data.queue.length() >= 6 && Date.now() >= lastCheckIn + 1000 * 60 * 10) {
-      data.logger.warn('Scan queue:', data.queue.length());
+    if (data.queue.length() >= 5 && Date.now() >= lastCheckIn + 1000 * 60 * 10) {
+      const workers = data.queue.workersList();
+      data.logger.warn(
+        `Scan queue: ${data.queue.length()}. ` +
+          `Current block: ${txEvent.blockNumber}. ` +
+          `Scanning block: ${workers[0].data.blockNumber}. ` +
+          `Block delay: ${txEvent.blockNumber - workers[0].data.blockNumber}`,
+      );
       lastCheckIn = Date.now();
     }
 
