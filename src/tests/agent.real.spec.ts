@@ -9,7 +9,7 @@ import agent from '../agent';
 const { provideInitialize, provideHandleContract } = agent;
 
 describe('real-world tests', () => {
-  jest.setTimeout(5 * 60 * 1000);
+  jest.setTimeout(15 * 60 * 1000);
 
   const data: DataContainer = {} as DataContainer;
   let handleContract: HandleContract;
@@ -91,7 +91,7 @@ describe('real-world tests', () => {
     await handleContract({
       address: '0x3b841fa4046d2a17d9e40609ed80a76830ec0362',
       deployer: '0xd4e10ce89c944771fb1ff173bf3b6557c692ef0d',
-      blockNumber: 16063018,
+      blockNumber: 16062787,
     });
     expect(data.findings).toHaveLength(1);
   });
