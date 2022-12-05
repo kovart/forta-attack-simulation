@@ -1,4 +1,4 @@
-import { Finding, FindingSeverity, FindingType } from 'forta-agent';
+import { EntityType, Finding, FindingSeverity, FindingType, Label, LabelType } from 'forta-agent';
 import BigNumber from 'bignumber.js';
 import { TokenInfo } from './types';
 
@@ -41,6 +41,33 @@ export const createExploitFunctionFinding = (
   }
   description += `Tokens transferred: ${formatTokens(balanceChanges[fundedAddress])}`;
 
+  const labels: Label[] = [
+    {
+      labelType: LabelType.Attacker,
+      entityType: EntityType.Address,
+      entity: deployerAddress,
+      confidence: 0.7,
+      customValue: 'exploit-deployer',
+    },
+    {
+      labelType: LabelType.Attacker,
+      entityType: EntityType.Address,
+      entity: contractAddress,
+      confidence: 0.7,
+      customValue: 'exploit-contract',
+    },
+  ];
+
+  if (fundedAddress !== deployerAddress && fundedAddress !== contractAddress) {
+    labels.push({
+      labelType: LabelType.Attacker,
+      entityType: EntityType.Address,
+      entity: fundedAddress,
+      confidence: 0.7,
+      customValue: 'exploit-receiver',
+    });
+  }
+
   return Finding.from({
     alertId: `${developerAbbreviation}-ATTACK-SIMULATION-0`,
     name: 'Potential Exploit Function',
@@ -48,6 +75,7 @@ export const createExploitFunctionFinding = (
     type: FindingType.Exploit,
     severity: FindingSeverity.Critical,
     addresses: addresses,
+    labels: labels,
     metadata: {
       sighash,
       calldata,
