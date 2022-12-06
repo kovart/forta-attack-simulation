@@ -31,7 +31,7 @@ const provideInitialize = (
     data.totalTokensThresholdsByAddress = {};
     data.chainId = (await data.provider.getNetwork()).chainId;
     // normalize token addresses
-    Object.keys(config.totalTokensThresholdsByChain[data.chainId]).forEach((tokenAddress) => {
+    Object.keys(config.totalTokensThresholdsByChain[data.chainId] || {}).forEach((tokenAddress) => {
       data.totalTokensThresholdsByAddress[tokenAddress.toLowerCase()] =
         config.totalTokensThresholdsByChain[data.chainId][tokenAddress];
     });

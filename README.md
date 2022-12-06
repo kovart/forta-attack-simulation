@@ -74,6 +74,12 @@ For ERC1155 tokens, the bot also takes into account the value of each of the int
 Chains with support for [Trace API](https://openethereum.github.io/JSONRPC-trace-module).
 
 - Ethereum (1)
+- BSC (56)
+- Polygon (137)
+- Arbitrum (42161)
+- Optimism (10)
+- Fantom (250)
+- Avalanche (43114)
 
 ## Alerts
 

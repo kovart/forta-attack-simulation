@@ -393,6 +393,17 @@ export function getCreatedContracts(txEvent: TransactionEvent): CreatedContract[
     }
   }
 
+  if (!txEvent.to && txEvent.traces.length === 0) {
+    createdContracts.push({
+      deployer: sender,
+      address: ethers.utils.getContractAddress({
+        from: txEvent.from,
+        nonce: txEvent.transaction.nonce,
+      }),
+      blockNumber: txEvent.blockNumber,
+    });
+  }
+
   return createdContracts;
 }
 
@@ -401,10 +412,21 @@ export async function getNativeTokenPrice(
   logger?: Logger,
   timestamp?: number,
 ): Promise<number | undefined> {
-  if (network !== Network.MAINNET) throw new Error('Not implemented yet: ' + Network[network]);
+  // https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc
+  const keys: { [chain: number]: string } = {
+    [Network.MAINNET]: 'coingecko:ethereum',
+    [Network.BSC]: 'coingecko:binancecoin',
+    [Network.POLYGON]: 'coingecko:matic-network',
+    [Network.ARBITRUM]: 'coingecko:ethereum', // arbitrum doesn't have a native token
+    [Network.FANTOM]: 'coingecko:fantom',
+    [Network.AVALANCHE]: 'coingecko:avalanche-2',
+    [Network.OPTIMISM]: 'coingecko:ethereum', // optimism doesn't have a native token
+  };
+
+  if (!keys[network]) throw new Error('Not implemented yet: ' + Network[network]);
 
   try {
-    const coinKey = ['coingecko:ethereum', timestamp].filter((v) => v).join('/');
+    const coinKey = [keys[network], timestamp].filter((v) => v).join('/');
     return coinPriceCache.fetch(coinKey, { fetchContext: { logger } });
   } catch (e) {
     logger?.error(e);
@@ -422,6 +444,9 @@ export async function getErc20TokenPrice(
     [Network.BSC]: 'bsc',
     [Network.POLYGON]: 'polygon',
     [Network.ARBITRUM]: 'arbitrum',
+    [Network.FANTOM]: 'fantom',
+    [Network.AVALANCHE]: 'avax',
+    [Network.OPTIMISM]: 'optimism',
   };
 
   if (!chainKeysByNetwork[network]) throw new Error('Not implemented yet: ' + Network[network]);
