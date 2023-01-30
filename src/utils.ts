@@ -83,7 +83,6 @@ export function* generateCallData(opts: { words: number; addresses: string[] }) 
       utils.defaultAbiCoder.encode(['uint256'], [1]),
       utils.defaultAbiCoder.encode(['uint256'], [10_000]),
       utils.defaultAbiCoder.encode(['uint256'], [1_000_000]),
-      utils.defaultAbiCoder.encode(['uint256'], [EtherBigNumber.from(10).pow(18)]),
       utils.defaultAbiCoder.encode(['uint256'], [EtherBigNumber.from(10).pow(22)]),
       utils.defaultAbiCoder.encode(['uint256'], [ethers.constants.MaxUint256]),
       ...addresses.map((address) => utils.defaultAbiCoder.encode(['address'], [address])),
