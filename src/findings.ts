@@ -1,5 +1,6 @@
-import { EntityType, Finding, FindingSeverity, FindingType, Label, LabelType } from 'forta-agent';
+import { EntityType, Finding, FindingSeverity, FindingType, Label } from 'forta-agent';
 import BigNumber from 'bignumber.js';
+
 import { TokenInfo } from './types';
 
 // funding deployer
@@ -13,6 +14,7 @@ export const createExploitFunctionFinding = (
   fundedAddress: string,
   balanceChanges: { [account: string]: TokenInfo[] },
   addresses: string[],
+  anomalyScore: number,
   developerAbbreviation: string,
 ) => {
   // normalize addresses
@@ -42,30 +44,32 @@ export const createExploitFunctionFinding = (
   description += `Tokens transferred: ${formatTokens(balanceChanges[fundedAddress])}`;
 
   const labels: Label[] = [
-    {
-      labelType: LabelType.Attacker,
+    Label.fromObject({
       entityType: EntityType.Address,
       entity: deployerAddress,
-      confidence: 0.7,
-      customValue: 'exploit-deployer',
-    },
-    {
-      labelType: LabelType.Attacker,
+      label: 'Attacker',
+      confidence: 0.5,
+      remove: false,
+    }),
+    Label.fromObject({
       entityType: EntityType.Address,
       entity: contractAddress,
-      confidence: 0.7,
-      customValue: 'exploit-contract',
-    },
+      label: 'Exploit',
+      confidence: 0.5,
+      remove: false,
+    }),
   ];
 
   if (fundedAddress !== deployerAddress && fundedAddress !== contractAddress) {
-    labels.push({
-      labelType: LabelType.Attacker,
-      entityType: EntityType.Address,
-      entity: fundedAddress,
-      confidence: 0.7,
-      customValue: 'exploit-receiver',
-    });
+    labels.push(
+      Label.fromObject({
+        entityType: EntityType.Address,
+        entity: fundedAddress,
+        label: 'Attacker',
+        confidence: 0.5,
+        remove: false,
+      }),
+    );
   }
 
   return Finding.from({
@@ -82,6 +86,7 @@ export const createExploitFunctionFinding = (
       contractAddress,
       fundedAddress,
       deployerAddress,
+      anomaly_score: anomalyScore.toString(),
       balanceChanges: JSON.stringify(balanceChanges),
     },
   });

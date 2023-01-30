@@ -18,27 +18,27 @@ export class Logger {
     }
   }
 
-  private _log(args: any[], level: LoggerLevel) {
+  private _log = (args: any[], level: LoggerLevel) => {
     if (level < this.level) return;
 
     console.log(...this.scope, ...args);
-  }
+  };
 
-  public debug(...args: any[]) {
+  public debug = (...args: any[]) => {
     this._log(args, LoggerLevel.DEBUG);
-  }
+  };
 
-  public info(...args: any[]) {
+  public info = (...args: any[]) => {
     this._log(args, LoggerLevel.INFO);
-  }
+  };
 
-  public warn(...args: any[]) {
+  public warn = (...args: any[]) => {
     this._log(args, LoggerLevel.WARN);
-  }
+  };
 
-  public error(...args: any[]) {
+  public error = (...args: any[]) => {
     this._log(args, LoggerLevel.ERROR);
-  }
+  };
 
   public clone(...args: any[]) {
     return new Logger(this.level, [...this.scope, ...args]);

@@ -2,6 +2,8 @@ import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
 import { queue } from 'async';
 import { getEthersProvider, HandleTransaction, Initialize, TransactionEvent } from 'forta-agent';
+import { BotAnalytics, InMemoryBotStorage } from 'forta-bot-analytics';
+
 import * as botUtils from './utils';
 import { Logger, LoggerLevel } from './logger';
 import { CreatedContract, DataContainer, HandleContract, TokenInfo, TokenInterface } from './types';
@@ -36,8 +38,18 @@ const provideInitialize = (
         config.totalTokensThresholdsByChain[data.chainId][tokenAddress];
     });
     data.logger = new Logger(data.isDevelopment ? LoggerLevel.DEBUG : LoggerLevel.WARN);
+    data.analytics = new BotAnalytics(new InMemoryBotStorage(data.logger.info), {
+      key: data.chainId.toString(),
+      defaultAnomalyScore: {
+        [BotAnalytics.GeneralAlertId]:
+          config.defaultAnomalyScore[data.chainId] ?? config.defaultAnomalyScore['1'],
+      },
+      syncTimeout: 60 * 60, // 1h
+      maxSyncDelay: 31 * 24 * 60 * 60, // 31d
+      observableInterval: 14 * 24 * 60 * 60, // 14d
+      logFn: data.logger.info,
+    });
     data.isInitialized = true;
-
     data.logger.debug('Initialized');
   };
 };
@@ -258,6 +270,8 @@ const provideHandleContract = (
                   ...receipt.logs.map((l) => l.address.toLowerCase()),
                 ]);
 
+                data.analytics.incrementAlertTriggers(createdContract.timestamp);
+
                 data.findings.push(
                   createExploitFunctionFinding(
                     sighash,
@@ -267,6 +281,7 @@ const provideHandleContract = (
                     highlyFundedAccount,
                     tokensByAccount,
                     [...involvedAddresses],
+                    data.analytics.getAnomalyScore(),
                     data.developerAbbreviation,
                   ),
                 );
@@ -322,9 +337,14 @@ const provideHandleTransaction = (
   return async function handleTransaction(txEvent: TransactionEvent) {
     if (!data.isInitialized) throw new Error('DataContainer is not initialized');
 
+    await data.analytics.sync(txEvent.timestamp);
+
     const { getCreatedContracts } = utils;
 
     const createdContracts: CreatedContract[] = getCreatedContracts(txEvent);
+
+    // update analytics data to calculate anomaly score
+    createdContracts.forEach(() => data.analytics.incrementBotTriggers(txEvent.timestamp));
 
     // log scan queue every 10 minutes
     if (data.queue.length() >= 5 && Date.now() >= lastCheckIn + 1000 * 60 * 10) {

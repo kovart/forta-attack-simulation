@@ -5,11 +5,13 @@ jest.mock('forta-agent', () => ({
   getEthersProvider: mockEthersProvider,
 }));
 
+import { BotAnalytics, InMemoryBotStorage } from 'forta-bot-analytics';
 import { Finding, FindingSeverity, FindingType, HandleTransaction, Network } from 'forta-agent';
 import { TestTransactionEvent } from 'forta-agent-tools/lib/tests';
-import { ethers } from 'ethers';
 import BigNumber from 'bignumber.js';
 import Ganache, { EthereumProvider } from 'ganache';
+import { ethers } from 'ethers';
+
 import { compile, CompilerArtifact } from './utils/compiler';
 import {
   CreatedContract,
@@ -110,6 +112,12 @@ describe('attack simulation', () => {
       mockData.payableFunctionEtherValue = 10;
       mockData.chainId = testNetwork;
       mockData.logger = new Logger(LoggerLevel.DEBUG);
+      mockData.analytics = new BotAnalytics(new InMemoryBotStorage(), {
+        defaultAnomalyScore: { [BotAnalytics.GeneralAlertId]: 0.123 },
+        syncTimeout: 60 * 60,
+        maxSyncDelay: 31 * 24 * 60 * 60,
+        observableInterval: 14 * 24 * 60 * 60,
+      });
       mockData.provider = web3Provider;
       mockData.isDevelopment = true;
       mockData.isDebug = false;
@@ -383,6 +391,7 @@ describe('attack simulation', () => {
         address: await regularContract.resolvedAddress,
         deployer: await protocolOwnerSigner.getAddress(),
         blockNumber: regularContract.deployTransaction.blockNumber!,
+        timestamp: regularContract.deployTransaction.timestamp!,
       };
 
       await handleContract(createdContract);
@@ -425,8 +434,9 @@ describe('attack simulation', () => {
 
       await handleContract({
         address: exploitContract.address,
-        blockNumber: exploitContract.deployTransaction.blockNumber!,
         deployer: exploitContract.deployTransaction.from,
+        blockNumber: exploitContract.deployTransaction.blockNumber!,
+        timestamp: exploitContract.deployTransaction.timestamp!,
       });
 
       // should not fire alert because we haven't exceeded the threshold
@@ -456,8 +466,9 @@ describe('attack simulation', () => {
 
       await handleContract({
         address: exploitContract.address,
-        blockNumber: exploitContract.deployTransaction.blockNumber!,
         deployer: exploitContract.deployTransaction.from,
+        blockNumber: exploitContract.deployTransaction.blockNumber!,
+        timestamp: exploitContract.deployTransaction.timestamp!,
       });
 
       // should not fire alert because the price of the transferred token is unknown
@@ -495,8 +506,9 @@ describe('attack simulation', () => {
 
       await handleContract({
         address: exploitContract.address,
-        blockNumber: exploitContract.deployTransaction.blockNumber!,
         deployer: exploitContract.deployTransaction.from,
+        blockNumber: exploitContract.deployTransaction.blockNumber!,
+        timestamp: exploitContract.deployTransaction.timestamp!,
       });
 
       // should not fire alert because the price of the transferred tokens is unknown
@@ -525,8 +537,9 @@ describe('attack simulation', () => {
       // handle transaction
       await handleContract({
         address: exploitContract.address.toLowerCase(),
-        blockNumber: exploitContract.deployTransaction.blockNumber!,
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
+        blockNumber: exploitContract.deployTransaction.blockNumber!,
+        timestamp: exploitContract.deployTransaction.timestamp!,
       });
 
       // test finding
@@ -576,8 +589,9 @@ describe('attack simulation', () => {
       // handle transaction
       await handleContract({
         address: exploitContract.address.toLowerCase(),
-        blockNumber: exploitContract.deployTransaction.blockNumber!,
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
+        blockNumber: exploitContract.deployTransaction.blockNumber!,
+        timestamp: exploitContract.deployTransaction.timestamp!,
       });
 
       // test finding
@@ -626,8 +640,9 @@ describe('attack simulation', () => {
       // handle transaction
       await handleContract({
         address: exploitContract.address.toLowerCase(),
-        blockNumber: exploitContract.deployTransaction.blockNumber!,
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
+        blockNumber: exploitContract.deployTransaction.blockNumber!,
+        timestamp: exploitContract.deployTransaction.timestamp!,
       });
 
       // test finding
@@ -671,8 +686,9 @@ describe('attack simulation', () => {
       // handle transaction
       await handleContract({
         address: exploitContract.address.toLowerCase(),
-        blockNumber: exploitContract.deployTransaction.blockNumber!,
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
+        blockNumber: exploitContract.deployTransaction.blockNumber!,
+        timestamp: exploitContract.deployTransaction.timestamp!,
       });
 
       // test finding
@@ -715,8 +731,9 @@ describe('attack simulation', () => {
       // handle transaction
       await handleContract({
         address: exploitContract.address.toLowerCase(),
-        blockNumber: exploitContract.deployTransaction.blockNumber!,
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
+        blockNumber: exploitContract.deployTransaction.blockNumber!,
+        timestamp: exploitContract.deployTransaction.timestamp!,
       });
 
       // test finding
@@ -765,8 +782,9 @@ describe('attack simulation', () => {
       // handle transaction
       await handleContract({
         address: exploitContract.address.toLowerCase(),
-        blockNumber: exploitContract.deployTransaction.blockNumber!,
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
+        blockNumber: exploitContract.deployTransaction.blockNumber!,
+        timestamp: exploitContract.deployTransaction.timestamp!,
       });
 
       // test finding
@@ -813,8 +831,9 @@ describe('attack simulation', () => {
       // handle transaction
       await handleContract({
         address: exploitContract.address.toLowerCase(),
-        blockNumber: exploitContract.deployTransaction.blockNumber!,
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
+        blockNumber: exploitContract.deployTransaction.blockNumber!,
+        timestamp: exploitContract.deployTransaction.timestamp!,
       });
 
       // test finding
@@ -911,6 +930,9 @@ describe('attack simulation', () => {
           developerAbbreviation: 'TEST',
           payableFunctionEtherValue: '123456',
           totalUsdTransferThreshold: '123456789',
+          defaultAnomalyScore: {
+            [chainId]: 0.123,
+          },
           totalTokensThresholdsByChain: {
             '1': {
               '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85': {

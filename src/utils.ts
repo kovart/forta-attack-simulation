@@ -375,6 +375,7 @@ export function getCreatedContracts(txEvent: TransactionEvent): CreatedContract[
           deployer: sender,
           address: trace.result.address.toLowerCase(),
           blockNumber: txEvent.blockNumber,
+          timestamp: txEvent.timestamp,
         });
         continue;
       }
@@ -388,6 +389,7 @@ export function getCreatedContracts(txEvent: TransactionEvent): CreatedContract[
           deployer: sender,
           address: createdContract.toLowerCase(),
           blockNumber: txEvent.blockNumber,
+          timestamp: txEvent.timestamp,
         });
       }
     }
@@ -401,6 +403,7 @@ export function getCreatedContracts(txEvent: TransactionEvent): CreatedContract[
         nonce: txEvent.transaction.nonce,
       }),
       blockNumber: txEvent.blockNumber,
+      timestamp: txEvent.timestamp,
     });
   }
 

@@ -2,6 +2,8 @@ import BigNumber from 'bignumber.js';
 import { Finding } from 'forta-agent';
 import { providers } from 'ethers';
 import { QueueObject } from 'async';
+import { BotAnalytics } from 'forta-bot-analytics';
+
 import { Logger } from './logger';
 
 export enum TokenInterface {
@@ -23,6 +25,7 @@ export type CreatedContract = {
   address: string;
   deployer: string;
   blockNumber: number;
+  timestamp: number;
 };
 
 export type HandleContract = (createdContract: CreatedContract) => Promise<void>;
@@ -41,8 +44,10 @@ export type DataContainer = {
   };
   findings: Finding[];
   chainId: number;
+  analytics: BotAnalytics;
   developerAbbreviation: string;
   isDevelopment: boolean;
   isDebug: boolean;
   isInitialized: boolean;
+  initializeError: any;
 };
