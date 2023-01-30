@@ -3,7 +3,7 @@
   "payableFunctionEtherValue": "5",
   "totalUsdTransferThreshold": "18000",
   "defaultAnomalyScore": {
-    "1": 0.125
+    "1": 0.0002
   },
   "totalTokensThresholdsByChain": {
     "1": {

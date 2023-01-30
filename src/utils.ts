@@ -281,6 +281,9 @@ export async function getTokenNames(params: {
     [Network.BSC]: 'BNB',
     [Network.POLYGON]: 'MATIC',
     [Network.ARBITRUM]: 'ETH',
+    [Network.AVALANCHE]: 'AVAX',
+    [Network.FANTOM]: 'FTM',
+    [Network.OPTIMISM]: 'ETH',
   };
 
   await Promise.all(
