@@ -2,7 +2,7 @@ import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
 import { queue } from 'async';
 import { getEthersProvider, HandleTransaction, Initialize, TransactionEvent } from 'forta-agent';
-import { BotAnalytics, InMemoryBotStorage } from 'forta-bot-analytics';
+import { BotAnalytics, FortaBotStorage, InMemoryBotStorage } from 'forta-bot-analytics';
 
 import * as botUtils from './utils';
 import { Logger, LoggerLevel } from './logger';
@@ -38,17 +38,22 @@ const provideInitialize = (
         config.totalTokensThresholdsByChain[data.chainId][tokenAddress];
     });
     data.logger = new Logger(data.isDevelopment ? LoggerLevel.DEBUG : LoggerLevel.WARN);
-    data.analytics = new BotAnalytics(new InMemoryBotStorage(data.logger.info), {
-      key: data.chainId.toString(),
-      defaultAnomalyScore: {
-        [BotAnalytics.GeneralAlertId]:
-          config.defaultAnomalyScore[data.chainId] ?? config.defaultAnomalyScore['1'],
+    data.analytics = new BotAnalytics(
+      data.isDevelopment
+        ? new InMemoryBotStorage(data.logger.info)
+        : new FortaBotStorage(data.logger.info),
+      {
+        key: data.chainId.toString(),
+        defaultAnomalyScore: {
+          [BotAnalytics.GeneralAlertId]:
+            config.defaultAnomalyScore[data.chainId] ?? config.defaultAnomalyScore['1'],
+        },
+        syncTimeout: 60 * 60, // 1h
+        maxSyncDelay: 31 * 24 * 60 * 60, // 31d
+        observableInterval: 14 * 24 * 60 * 60, // 14d
+        logFn: data.logger.info,
       },
-      syncTimeout: 60 * 60, // 1h
-      maxSyncDelay: 31 * 24 * 60 * 60, // 31d
-      observableInterval: 14 * 24 * 60 * 60, // 14d
-      logFn: data.logger.info,
-    });
+    );
     data.isInitialized = true;
     data.logger.debug('Initialized');
   };
