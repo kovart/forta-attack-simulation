@@ -26,6 +26,7 @@ export type CreatedContract = {
   deployer: string;
   blockNumber: number;
   timestamp: number;
+  txHash: string;
 };
 
 export type HandleContract = (createdContract: CreatedContract) => Promise<void>;

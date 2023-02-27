@@ -392,6 +392,7 @@ describe('attack simulation', () => {
         deployer: await protocolOwnerSigner.getAddress(),
         blockNumber: regularContract.deployTransaction.blockNumber!,
         timestamp: regularContract.deployTransaction.timestamp!,
+        txHash: regularContract.deployTransaction.hash,
       };
 
       await handleContract(createdContract);
@@ -437,6 +438,7 @@ describe('attack simulation', () => {
         deployer: exploitContract.deployTransaction.from,
         blockNumber: exploitContract.deployTransaction.blockNumber!,
         timestamp: exploitContract.deployTransaction.timestamp!,
+        txHash: exploitContract.deployTransaction.hash,
       });
 
       // should not fire alert because we haven't exceeded the threshold
@@ -469,6 +471,7 @@ describe('attack simulation', () => {
         deployer: exploitContract.deployTransaction.from,
         blockNumber: exploitContract.deployTransaction.blockNumber!,
         timestamp: exploitContract.deployTransaction.timestamp!,
+        txHash: exploitContract.deployTransaction.hash,
       });
 
       // should not fire alert because the price of the transferred token is unknown
@@ -509,6 +512,7 @@ describe('attack simulation', () => {
         deployer: exploitContract.deployTransaction.from,
         blockNumber: exploitContract.deployTransaction.blockNumber!,
         timestamp: exploitContract.deployTransaction.timestamp!,
+        txHash: exploitContract.deployTransaction.hash,
       });
 
       // should not fire alert because the price of the transferred tokens is unknown
@@ -540,6 +544,7 @@ describe('attack simulation', () => {
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
         blockNumber: exploitContract.deployTransaction.blockNumber!,
         timestamp: exploitContract.deployTransaction.timestamp!,
+        txHash: exploitContract.deployTransaction.hash,
       });
 
       // test finding
@@ -592,6 +597,7 @@ describe('attack simulation', () => {
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
         blockNumber: exploitContract.deployTransaction.blockNumber!,
         timestamp: exploitContract.deployTransaction.timestamp!,
+        txHash: exploitContract.deployTransaction.hash,
       });
 
       // test finding
@@ -643,6 +649,7 @@ describe('attack simulation', () => {
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
         blockNumber: exploitContract.deployTransaction.blockNumber!,
         timestamp: exploitContract.deployTransaction.timestamp!,
+        txHash: exploitContract.deployTransaction.hash,
       });
 
       // test finding
@@ -689,6 +696,7 @@ describe('attack simulation', () => {
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
         blockNumber: exploitContract.deployTransaction.blockNumber!,
         timestamp: exploitContract.deployTransaction.timestamp!,
+        txHash: exploitContract.deployTransaction.hash,
       });
 
       // test finding
@@ -734,6 +742,7 @@ describe('attack simulation', () => {
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
         blockNumber: exploitContract.deployTransaction.blockNumber!,
         timestamp: exploitContract.deployTransaction.timestamp!,
+        txHash: exploitContract.deployTransaction.hash,
       });
 
       // test finding
@@ -785,6 +794,7 @@ describe('attack simulation', () => {
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
         blockNumber: exploitContract.deployTransaction.blockNumber!,
         timestamp: exploitContract.deployTransaction.timestamp!,
+        txHash: exploitContract.deployTransaction.hash,
       });
 
       // test finding
@@ -834,6 +844,7 @@ describe('attack simulation', () => {
         deployer: exploitContract.deployTransaction.from.toLowerCase(),
         blockNumber: exploitContract.deployTransaction.blockNumber!,
         timestamp: exploitContract.deployTransaction.timestamp!,
+        txHash: exploitContract.deployTransaction.hash,
       });
 
       // test finding

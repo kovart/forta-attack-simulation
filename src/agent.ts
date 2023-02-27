@@ -287,6 +287,7 @@ const provideHandleContract = (
                     tokensByAccount,
                     [...involvedAddresses],
                     data.analytics.getAnomalyScore(),
+                    createdContract.txHash,
                     data.developerAbbreviation,
                   ),
                 );

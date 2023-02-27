@@ -15,6 +15,7 @@ export const createExploitFunctionFinding = (
   balanceChanges: { [account: string]: TokenInfo[] },
   addresses: string[],
   anomalyScore: number,
+  txHash: string,
   developerAbbreviation: string,
 ) => {
   // normalize addresses
@@ -58,6 +59,13 @@ export const createExploitFunctionFinding = (
       confidence: 0.5,
       remove: false,
     }),
+    Label.fromObject({
+      entityType: EntityType.Transaction,
+      entity: txHash,
+      label: 'Exploit',
+      confidence: 0.5,
+      remove: false,
+    }),
   ];
 
   if (fundedAddress !== deployerAddress && fundedAddress !== contractAddress) {
@@ -86,6 +94,7 @@ export const createExploitFunctionFinding = (
       contractAddress,
       fundedAddress,
       deployerAddress,
+      txHash: txHash,
       anomaly_score: anomalyScore.toString(),
       balanceChanges: JSON.stringify(balanceChanges),
     },
