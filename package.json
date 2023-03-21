@@ -1,6 +1,6 @@
 {
-  "name": "ak-forta-attack-simulation-agent",
-  "version": "0.0.11",
+  "name": "ak-forta-attack-simulation-bot",
+  "version": "0.0.12",
   "description": "Detect deployment of smart contracts containing an exploit function",
   "repository": {
     "type": "git",
@@ -17,8 +17,8 @@
   ],
   "chainSettings": {
     "default": {
-      "shards": 5,
-      "target": 3
+      "shards": 10,
+      "target": 2
     }
   },
   "scripts": {
