@@ -371,7 +371,7 @@ const provideHandleTransaction = (
           `Current block: ${txEvent.blockNumber}. ` +
           `Scanning block: ${workers[0].data.blockNumber}. ` +
           `Block delay: ${txEvent.blockNumber - workers[0].data.blockNumber}. `,
-        `Memory: ${process.memoryUsage().heapUsed / 1024 / 1024}Mb`,
+        `Memory: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)}Mb`,
       );
       loggedAt = Date.now();
     }
