@@ -1,7 +1,13 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
 import { queue } from 'async';
-import { getEthersProvider, HandleTransaction, Initialize, TransactionEvent } from 'forta-agent';
+import {
+  getEthersProvider,
+  HandleTransaction,
+  Initialize,
+  Network,
+  TransactionEvent,
+} from 'forta-agent';
 import { BotAnalytics, FortaBotStorage, InMemoryBotStorage } from 'forta-bot-analytics';
 
 import * as botUtils from './utils';
@@ -31,7 +37,7 @@ const provideInitialize = (
     data.findings = [];
     data.totalUsdTransferThreshold = new BigNumber(config.totalUsdTransferThreshold);
     data.totalTokensThresholdsByAddress = {};
-    data.chainId = (await data.provider.getNetwork()).chainId;
+    data.chainId = data.provider.network.chainId;
     // normalize token addresses
     Object.keys(config.totalTokensThresholdsByChain[data.chainId] || {}).forEach((tokenAddress) => {
       data.totalTokensThresholdsByAddress[tokenAddress.toLowerCase()] =
@@ -46,7 +52,7 @@ const provideInitialize = (
         key: data.chainId.toString(),
         defaultAnomalyScore: {
           [BotAnalytics.GeneralAlertId]:
-            config.defaultAnomalyScore[data.chainId] ?? config.defaultAnomalyScore['1'],
+            config.defaultAnomalyScore[data.chainId] ?? config.defaultAnomalyScore[Network.MAINNET],
         },
         syncTimeout: 60 * 60, // 1h
         maxSyncDelay: 31 * 24 * 60 * 60, // 31d
@@ -337,11 +343,16 @@ const provideHandleContract = (
 const provideHandleTransaction = (
   data: DataContainer,
   utils: Pick<typeof botUtils, 'getCreatedContracts'>,
+  initialize: Initialize,
 ): HandleTransaction => {
-  let lastCheckIn = 0;
+  let loggedAt = 0;
 
   return async function handleTransaction(txEvent: TransactionEvent) {
-    if (!data.isInitialized) throw new Error('DataContainer is not initialized');
+    if (!data.isInitialized) {
+      // eslint-disable-next-line no-console
+      console.error('DataContainer is not initialized');
+      await initialize();
+    }
 
     await data.analytics.sync(txEvent.timestamp);
 
@@ -353,15 +364,16 @@ const provideHandleTransaction = (
     createdContracts.forEach(() => data.analytics.incrementBotTriggers(txEvent.timestamp));
 
     // log scan queue every 10 minutes
-    if (data.queue.length() >= 5 && Date.now() >= lastCheckIn + 1000 * 60 * 10) {
+    if (data.queue.length() >= 5 && Date.now() - loggedAt > 10 * 60 * 1000) {
       const workers = data.queue.workersList();
       data.logger.warn(
         `Scan queue: ${data.queue.length()}. ` +
           `Current block: ${txEvent.blockNumber}. ` +
           `Scanning block: ${workers[0].data.blockNumber}. ` +
-          `Block delay: ${txEvent.blockNumber - workers[0].data.blockNumber}`,
+          `Block delay: ${txEvent.blockNumber - workers[0].data.blockNumber}. `,
+        `Memory: ${process.memoryUsage().heapUsed / 1024 / 1024}Mb`,
       );
-      lastCheckIn = Date.now();
+      loggedAt = Date.now();
     }
 
     data.queue.push(createdContracts);
@@ -374,9 +386,11 @@ const provideHandleTransaction = (
   };
 };
 
+const initialize = provideInitialize(data, botConfig, provideHandleContract(data, botUtils));
+
 export default {
-  initialize: provideInitialize(data, botConfig, provideHandleContract(data, botUtils)),
-  handleTransaction: provideHandleTransaction(data, botUtils),
+  initialize: initialize,
+  handleTransaction: provideHandleTransaction(data, botUtils, initialize),
 
   provideInitialize,
   provideHandleTransaction,

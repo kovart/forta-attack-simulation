@@ -925,17 +925,16 @@ describe('attack simulation', () => {
 
     beforeAll(() => {
       mockEthersProvider.mockReturnValue({
-        getNetwork: () => ({
-          chainId: chainId,
-        }),
+        get network() {
+          return { chainId }
+        }
       });
     });
 
     beforeEach(async () => {
       data = {} as any;
       mockTxEvent = new TestTransactionEvent();
-      handleTransaction = provideHandleTransaction(data, botUtils);
-      await provideInitialize(
+      const initialize = provideInitialize(
         data,
         {
           developerAbbreviation: 'TEST',
@@ -954,7 +953,9 @@ describe('attack simulation', () => {
           },
         },
         mockHandleContract,
-      )();
+      );
+      handleTransaction = provideHandleTransaction(data, botUtils, initialize);
+      await initialize();
       mockHandleContract.mockReset();
     });
 
@@ -991,5 +992,36 @@ describe('attack simulation', () => {
       expect(findings).toStrictEqual(expectedFindings);
       expect(data.findings).toStrictEqual([]);
     });
+
+    it('should re-initialize if it has not been initialized yet', async () => {
+      const data = {} as DataContainer;
+      const initialize = provideInitialize(
+        data,
+        {
+          developerAbbreviation: 'TEST',
+          payableFunctionEtherValue: '123456',
+          totalUsdTransferThreshold: '123456789',
+          defaultAnomalyScore: {
+            [chainId]: 0.123,
+          },
+          totalTokensThresholdsByChain: {
+            '1': {
+              '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85': {
+                name: 'ENS',
+                threshold: 25,
+              },
+            },
+          },
+        },
+        mockHandleContract,
+      );
+      handleTransaction = provideHandleTransaction(data, botUtils, initialize);
+
+      expect(!!data.isInitialized).toBe(false);
+
+      await handleTransaction(mockTxEvent);
+
+      expect(data.isInitialized).toBe(true);
+    })
   });
 });
