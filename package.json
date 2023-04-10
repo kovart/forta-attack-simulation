@@ -1,5 +1,5 @@
 {
-  "name": "ak-forta-attack-simulation-bot",
+  "name": "attack-simulation-bot",
   "version": "0.0.13",
   "description": "The bot detects the deployment of smart contracts that contain exploit functions by simulating their execution within a sandbox environment.",
   "repository": {
