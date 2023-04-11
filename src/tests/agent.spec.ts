@@ -925,7 +925,7 @@ describe('attack simulation', () => {
 
     beforeAll(() => {
       mockEthersProvider.mockReturnValue({
-        get network() {
+        getNetwork() {
           return { chainId }
         }
       });

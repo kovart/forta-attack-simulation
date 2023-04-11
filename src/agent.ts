@@ -37,13 +37,13 @@ const provideInitialize = (
     data.findings = [];
     data.totalUsdTransferThreshold = new BigNumber(config.totalUsdTransferThreshold);
     data.totalTokensThresholdsByAddress = {};
-    data.chainId = data.provider.network.chainId;
+    data.chainId = (await data.provider.getNetwork()).chainId;
     // normalize token addresses
     Object.keys(config.totalTokensThresholdsByChain[data.chainId] || {}).forEach((tokenAddress) => {
       data.totalTokensThresholdsByAddress[tokenAddress.toLowerCase()] =
         config.totalTokensThresholdsByChain[data.chainId][tokenAddress];
     });
-    data.logger = new Logger(data.isDevelopment ? LoggerLevel.DEBUG : LoggerLevel.WARN);
+    data.logger = new Logger(data.isDevelopment ? LoggerLevel.DEBUG : LoggerLevel.INFO);
     data.analytics = new BotAnalytics(
       data.isDevelopment
         ? new InMemoryBotStorage(data.logger.info)
