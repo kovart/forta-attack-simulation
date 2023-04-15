@@ -72,10 +72,10 @@ export function getSighashes(code: string) {
   return sighashes;
 }
 
-export function* generateCallData(opts: { words: number; addresses: string[] }) {
-  const { words, addresses } = opts;
+export function* generateCallData(opts: { wordCount: number; addresses: string[] }) {
+  const { wordCount, addresses } = opts;
 
-  if (words === 0) {
+  if (wordCount === 0) {
     yield '';
   } else {
     const params = [
@@ -88,7 +88,7 @@ export function* generateCallData(opts: { words: number; addresses: string[] }) 
       ...addresses.map((address) => utils.defaultAbiCoder.encode(['address'], [address])),
     ].map((v) => v.slice(2));
 
-    const it = new BaseN(params, words);
+    const it = new BaseN(params, wordCount);
 
     for (const group of it) {
       yield group.join('');
@@ -405,7 +405,7 @@ export function getCreatedContracts(txEvent: TransactionEvent): CreatedContract[
       address: ethers.utils.getContractAddress({
         from: txEvent.from,
         nonce: txEvent.transaction.nonce,
-      }),
+      }).toLowerCase(),
       blockNumber: txEvent.blockNumber,
       timestamp: txEvent.timestamp,
       txHash: txEvent.hash,

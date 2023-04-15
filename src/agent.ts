@@ -127,9 +127,9 @@ const provideHandleContract = (
         let programCounter = -1;
         let isSignatureFound = false;
         // iterate from 0 to 5 function parameters until we found that function is being executed
-        for (let words = 0; words <= 5 && !isSignatureFound; words++) {
+        for (let wordCount = 0; wordCount <= 5 && !isSignatureFound; wordCount++) {
           for await (const calldata of generateCallData({
-            words,
+            wordCount: wordCount,
             addresses: [createdContract.deployer],
           })) {
             try {
@@ -159,6 +159,29 @@ const provideHandleContract = (
                   receipt,
                   provider,
                 });
+
+              // skip if it is a refund
+              if (Object.keys(totalBalanceChangesByAddress).length === 2) {
+                const contractChanges = totalBalanceChangesByAddress[createdContract.address] || {};
+                const deployerChanges = totalBalanceChangesByAddress[createdContract.deployer] || {};
+
+                let isRefund = true;
+                for(const [token, balance] of Object.entries(deployerChanges)) {
+                  if(!contractChanges[token]?.abs().eq(balance)) {
+                    isRefund = false;
+                    break;
+                  }
+                }
+
+                if(isRefund) {
+                  data.logger.warn(
+                    'Skipped refund function',
+                    sighash,
+                    JSON.stringify(totalBalanceChangesByAddress),
+                  );
+                  break;
+                }
+              }
 
               const timestamp = (await data.provider.getBlock(createdContract.blockNumber))
                 .timestamp;
