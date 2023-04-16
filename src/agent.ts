@@ -66,8 +66,8 @@ const provideInitialize = (
             config.defaultAnomalyScore[data.chainId] ?? config.defaultAnomalyScore[Network.MAINNET],
         },
         syncTimeout: 60 * 60, // 1h
-        maxSyncDelay: 31 * 24 * 60 * 60, // 31d
-        observableInterval: 14 * 24 * 60 * 60, // 14d
+        maxSyncDelay: 60 * 24 * 60 * 60, // 60d
+        observableInterval: 60 * 24 * 60 * 60, // 60d
         logFn: data.logger.info,
       },
     );
