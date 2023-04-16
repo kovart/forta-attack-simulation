@@ -204,7 +204,7 @@ const provideHandleContract = (
                 const deployerChanges =
                   totalBalanceChangesByAddress[createdContract.deployer] || {};
 
-                let isRefund = true;
+                let isRefund = Object.keys(deployerChanges).length === Object.keys(contractChanges).length;
                 for (const [token, balance] of Object.entries(deployerChanges)) {
                   if (!contractChanges[token]?.abs().eq(balance)) {
                     isRefund = false;
