@@ -52,3 +52,21 @@ export type DataContainer = {
   isInitialized: boolean;
   initializeError: any;
 };
+
+export type BotConfig = {
+  developerAbbreviation: string
+  payableFunctionEtherValue: number
+  totalUsdTransferThreshold: number
+  defaultAnomalyScore: {
+    [chainId: string]: number
+  };
+  maliciousContractMLBotId: string;
+  totalTokensThresholdsByChain: {
+    [chainId: string]: {
+      [tokenAddr: string]: {
+        name: string;
+        threshold: number
+      };
+    };
+  };
+};

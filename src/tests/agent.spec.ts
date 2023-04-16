@@ -6,7 +6,15 @@ jest.mock('forta-agent', () => ({
 }));
 
 import { BotAnalytics, InMemoryBotStorage } from 'forta-bot-analytics';
-import { Finding, FindingSeverity, FindingType, HandleTransaction, Network } from 'forta-agent';
+import {
+  Alert,
+  AlertEvent,
+  Finding,
+  FindingSeverity,
+  FindingType,
+  HandleTransaction,
+  Network,
+} from 'forta-agent';
 import { TestTransactionEvent } from 'forta-agent-tools/lib/tests';
 import BigNumber from 'bignumber.js';
 import Ganache, { EthereumProvider } from 'ganache';
@@ -14,6 +22,7 @@ import { ethers } from 'ethers';
 
 import { compile, CompilerArtifact } from './utils/compiler';
 import {
+  BotConfig,
   CreatedContract,
   DataContainer,
   HandleContract,
@@ -24,7 +33,8 @@ import * as botUtils from '../utils';
 import { Logger, LoggerLevel } from '../logger';
 import agent from '../agent';
 
-const { provideInitialize, provideHandleContract, provideHandleTransaction } = agent;
+const { provideInitialize, provideHandleContract, provideHandleTransaction, providerHandleAlert } =
+  agent;
 
 const nominator = (decimals: number) => new BigNumber(10).pow(decimals);
 
@@ -926,8 +936,8 @@ describe('attack simulation', () => {
     beforeAll(() => {
       mockEthersProvider.mockReturnValue({
         getNetwork() {
-          return { chainId }
-        }
+          return { chainId };
+        },
       });
     });
 
@@ -938,8 +948,10 @@ describe('attack simulation', () => {
         data,
         {
           developerAbbreviation: 'TEST',
-          payableFunctionEtherValue: '123456',
-          totalUsdTransferThreshold: '123456789',
+          payableFunctionEtherValue: 123456,
+          totalUsdTransferThreshold: 123456789,
+          maliciousContractMLBotId:
+            '0x0b241032ca430d9c02eaa6a52d217bbff046f0d1b3f3d2aa928e42a97150ec91',
           defaultAnomalyScore: {
             [chainId]: 0.123,
           },
@@ -999,8 +1011,10 @@ describe('attack simulation', () => {
         data,
         {
           developerAbbreviation: 'TEST',
-          payableFunctionEtherValue: '123456',
-          totalUsdTransferThreshold: '123456789',
+          payableFunctionEtherValue: 123456,
+          totalUsdTransferThreshold: 123456789,
+          maliciousContractMLBotId:
+            '0x0b241032ca430d9c02eaa6a52d217bbff046f0d1b3f3d2aa928e42a97150ec91',
           defaultAnomalyScore: {
             [chainId]: 0.123,
           },
@@ -1022,6 +1036,91 @@ describe('attack simulation', () => {
       await handleTransaction(mockTxEvent);
 
       expect(data.isInitialized).toBe(true);
-    })
+    });
+  });
+
+  describe('handleAlert', () => {
+    let mockData: DataContainer;
+    const mockChainId = 56;
+    const mockConfig: BotConfig = {
+      developerAbbreviation: 'TEST',
+      payableFunctionEtherValue: 123456,
+      totalUsdTransferThreshold: 123456789,
+      maliciousContractMLBotId:
+        '0x0b241032ca430d9c02eaa6a52d217bbff046f0d1b3f3d2aa928e42a97150ec91',
+      defaultAnomalyScore: {
+        ['1']: 0.123,
+      },
+      totalTokensThresholdsByChain: {},
+    };
+    const mockHandleContract = jest.fn().mockImplementation(async () => []);
+
+    beforeAll(() => {
+      mockEthersProvider.mockReturnValue({
+        getNetwork() {
+          return { chainId: mockChainId };
+        },
+      });
+    });
+
+    beforeEach(() => {
+      mockData = {} as DataContainer;
+      provideInitialize(mockData, mockConfig, mockHandleContract)();
+      mockHandleContract.mockClear();
+    });
+
+    it('should return alertConfig from initialize()', async () => {
+      const result = await provideInitialize(mockData, mockConfig, mockHandleContract)();
+
+      expect(result).toMatchObject({
+        alertConfig: {
+          subscriptions: [
+            {
+              botId: mockConfig.maliciousContractMLBotId,
+              alertId: 'SAFE-CONTRACT-CREATION',
+              chainId: mockChainId,
+            },
+          ],
+        },
+      });
+    });
+
+    it('should filter out good contracts from a SAFE-CONTRACT-CREATION alert', async () => {
+      const item1 = {
+        deployer: '0x1',
+        address: '0xd2db126090d3ab52a39b40632059d509aa50aca6',
+        txHash: '0xHASH1',
+        blockNumber: 123,
+        timestamp: 1234,
+      };
+      const item2 = {
+        deployer: '0x2',
+        address: '0xA594358ec8db111FF96C7046E36DCc1486a6837F',
+        txHash: '0xHASH2',
+        blockNumber: 1234,
+        timestamp: 12345,
+      };
+
+      // to not start executing
+      mockData.queue.pause();
+      mockData.queue.push({ ...item1, address: item1.address.toLowerCase() });
+      mockData.queue.push({ ...item2, address: item2.address.toLowerCase() });
+
+      expect(mockData.queue.length()).toStrictEqual(2);
+
+      await providerHandleAlert(mockData)(
+        new AlertEvent(
+          Alert.fromObject({
+            alertId: 'SAFE-CONTRACT-CREATION',
+            description: `0xd2db126090d3ab52a39b40632059d509aa50aca6 created contract ${item2.address}`,
+            source: {
+              bot: { id: mockConfig.maliciousContractMLBotId },
+            },
+          }),
+        ),
+      );
+
+      expect(mockData.queue.length()).toStrictEqual(1);
+    });
   });
 });

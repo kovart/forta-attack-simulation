@@ -1,10 +1,11 @@
 {
   "developerAbbreviation": "AK",
-  "payableFunctionEtherValue": "5",
-  "totalUsdTransferThreshold": "18000",
+  "payableFunctionEtherValue": 5,
+  "totalUsdTransferThreshold": 18000,
   "defaultAnomalyScore": {
     "1": 0.0002
   },
+  "maliciousContractMLBotId": "0x0b241032ca430d9c02eaa6a52d217bbff046f0d1b3f3d2aa928e42a97150ec91",
   "totalTokensThresholdsByChain": {
     "1": {
       "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85": {

@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { queue } from 'async';
 import {
   getEthersProvider,
+  HandleAlert,
   HandleTransaction,
   Initialize,
   Network,
@@ -12,16 +13,23 @@ import { BotAnalytics, FortaBotStorage, InMemoryBotStorage } from 'forta-bot-ana
 
 import * as botUtils from './utils';
 import { Logger, LoggerLevel } from './logger';
-import { CreatedContract, DataContainer, HandleContract, TokenInfo, TokenInterface } from './types';
 import { createExploitFunctionFinding } from './findings';
 import { BURN_ADDRESSES } from './contants';
+import {
+  BotConfig,
+  CreatedContract,
+  DataContainer,
+  HandleContract,
+  TokenInfo,
+  TokenInterface,
+} from './types';
 
-const data: DataContainer = {} as any;
-const botConfig = require('../bot-config.json');
+const data = {} as DataContainer;
+const botConfig: BotConfig = require('../bot-config.json');
 
 const provideInitialize = (
   data: DataContainer,
-  config: typeof botConfig,
+  config: BotConfig,
   handleContract: HandleContract,
 ): Initialize => {
   return async function initialize() {
@@ -40,8 +48,11 @@ const provideInitialize = (
     data.chainId = (await data.provider.getNetwork()).chainId;
     // normalize token addresses
     Object.keys(config.totalTokensThresholdsByChain[data.chainId] || {}).forEach((tokenAddress) => {
-      data.totalTokensThresholdsByAddress[tokenAddress.toLowerCase()] =
-        config.totalTokensThresholdsByChain[data.chainId][tokenAddress];
+      const record = config.totalTokensThresholdsByChain[data.chainId][tokenAddress];
+      data.totalTokensThresholdsByAddress[tokenAddress.toLowerCase()] = {
+        name: record.name,
+        threshold: new BigNumber(record.threshold),
+      };
     });
     data.logger = new Logger(data.isDevelopment ? LoggerLevel.DEBUG : LoggerLevel.INFO);
     data.analytics = new BotAnalytics(
@@ -62,6 +73,33 @@ const provideInitialize = (
     );
     data.isInitialized = true;
     data.logger.debug('Initialized');
+
+    return {
+      alertConfig: {
+        subscriptions: [
+          {
+            botId: config.maliciousContractMLBotId,
+            alertId: 'SAFE-CONTRACT-CREATION',
+            chainId: data.chainId,
+          },
+        ],
+      },
+    };
+  };
+};
+
+const providerHandleAlert = (data: DataContainer): HandleAlert => {
+  return async (alertEvent) => {
+    if (alertEvent.alertId === 'SAFE-CONTRACT-CREATION') {
+      const goodContractAddress = alertEvent.alert.description?.slice(-42).toLowerCase();
+
+      if (goodContractAddress) {
+        data.logger.debug(`Contract ${goodContractAddress} removed from the queue.`);
+        data.queue.remove((node) => node.data.address === goodContractAddress);
+      }
+    }
+
+    return [];
   };
 };
 
@@ -163,17 +201,18 @@ const provideHandleContract = (
               // skip if it is a refund
               if (Object.keys(totalBalanceChangesByAddress).length === 2) {
                 const contractChanges = totalBalanceChangesByAddress[createdContract.address] || {};
-                const deployerChanges = totalBalanceChangesByAddress[createdContract.deployer] || {};
+                const deployerChanges =
+                  totalBalanceChangesByAddress[createdContract.deployer] || {};
 
                 let isRefund = true;
-                for(const [token, balance] of Object.entries(deployerChanges)) {
-                  if(!contractChanges[token]?.abs().eq(balance)) {
+                for (const [token, balance] of Object.entries(deployerChanges)) {
+                  if (!contractChanges[token]?.abs().eq(balance)) {
                     isRefund = false;
                     break;
                   }
                 }
 
-                if(isRefund) {
+                if (isRefund) {
                   data.logger.warn(
                     'Skipped refund function',
                     sighash,
@@ -414,8 +453,10 @@ const initialize = provideInitialize(data, botConfig, provideHandleContract(data
 export default {
   initialize: initialize,
   handleTransaction: provideHandleTransaction(data, botUtils, initialize),
+  handleAlert: providerHandleAlert(data),
 
   provideInitialize,
   provideHandleTransaction,
   provideHandleContract,
+  providerHandleAlert,
 };
