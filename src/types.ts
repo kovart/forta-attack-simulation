@@ -41,8 +41,8 @@ export type DataContainer = {
   logger: Logger;
   provider: providers.JsonRpcProvider;
   queue: AsyncPriorityQueue<CreatedContract>;
-  suspiciousContractByAddress: Map<string, { address: string; timestamp: number }>;
   detectedContractByAddress: Map<string, CreatedContract>;
+  suspiciousContractByAddress: Map<string, { address: string; timestamp: number }>;
   contractWaitingTime: number;
   payableFunctionEtherValue: number;
   totalUsdTransferThreshold: BigNumber;
@@ -70,6 +70,8 @@ export type BotConfig = {
     [chainId: string]: number;
   };
   maliciousContractMLBotId: string;
+  tornadoCashContractBotId: string;
+  flashloanContractBotId: string;
   totalTokensThresholdsByChain: {
     [chainId: string]: {
       [tokenAddr: string]: {

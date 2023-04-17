@@ -29,7 +29,8 @@ const data = {} as DataContainer;
 const botConfig: BotConfig = require('../bot-config.json');
 const ENV = process.env as BotEnv;
 
-const NORMAL_PRIORITY = 9;
+const LOW_PRIORITY = 9;
+const NORMAL_PRIORITY = 4;
 const HIGH_PRIORITY = 1;
 
 const provideInitialize = (
@@ -62,9 +63,11 @@ const provideInitialize = (
         threshold: new BigNumber(record.threshold),
       };
     });
+
     data.detectedContractByAddress = new Map();
     data.suspiciousContractByAddress = new Map();
-    data.contractWaitingTime = 2 * 24 * 60 * 60;
+    data.contractWaitingTime = 2 * 24 * 60 * 60; // 2d
+
     data.logger = new Logger(data.isDevelopment ? LoggerLevel.DEBUG : LoggerLevel.INFO);
     data.analytics = new BotAnalytics(
       data.isDevelopment
@@ -93,6 +96,16 @@ const provideInitialize = (
             alertIds: ['SUSPICIOUS-CONTRACT-CREATION'],
             chainId: data.chainId,
           },
+          {
+            botId: config.flashloanContractBotId,
+            alertIds: ['SUSPICIOUS-FLASHLOAN-CONTRACT-CREATION', 'FLASHLOAN-CONTRACT-CREATION'],
+            chainId: data.chainId,
+          },
+          {
+            botId: config.tornadoCashContractBotId,
+            alertIds: ['SUSPICIOUS-CONTRACT-CREATION-TORNADO-CASH'],
+            chainId: data.chainId,
+          },
         ],
       },
     };
@@ -101,28 +114,43 @@ const provideInitialize = (
 
 const provideHandleAlert = (data: DataContainer, config: BotConfig): HandleAlert => {
   return async (alertEvent) => {
-    if (alertEvent.botId?.toLowerCase() === config.maliciousContractMLBotId.toLowerCase()) {
-      const contractAddress = alertEvent.alert.description?.slice(-42).toLowerCase();
+    const handlers = {
+      [config.tornadoCashContractBotId]: {
+        getPriority: () => NORMAL_PRIORITY,
+        getContractAddress: () => alertEvent.alert.description?.slice(0, 42).toLowerCase(),
+      },
+      [config.maliciousContractMLBotId]: {
+        getPriority: () => HIGH_PRIORITY,
+        getContractAddress: () => alertEvent.alert.description?.slice(-42).toLowerCase(),
+      },
+      [config.flashloanContractBotId]: {
+        getPriority: () => HIGH_PRIORITY,
+        getContractAddress: () => alertEvent.alert.name?.slice(-42).toLowerCase(),
+      },
+    };
 
-      if (!contractAddress) return [];
+    for (const [botId, handler] of Object.entries(handlers)) {
+      if (alertEvent.botId?.toLowerCase() !== botId.toLowerCase()) continue;
 
-      if (alertEvent.alertId === 'SUSPICIOUS-CONTRACT-CREATION') {
-        let queuedContract: CreatedContract | undefined;
-        data.queue.remove((node) => {
-          if (node.data.address === contractAddress) queuedContract = node.data
-          return !!queuedContract;
+      const contractAddress = handler.getContractAddress();
+
+      if (!contractAddress) break;
+
+      let queuedContract: CreatedContract | undefined;
+      data.queue.remove((node) => {
+        if (node.data.address === contractAddress) queuedContract = node.data;
+        return !!queuedContract;
+      });
+
+      if (queuedContract) {
+        data.queue.push(queuedContract, handler.getPriority());
+      } else {
+        data.suspiciousContractByAddress.set(contractAddress, {
+          address: contractAddress,
+          timestamp: Math.floor(
+            new Date(alertEvent.alert.createdAt || Date.now()).valueOf() / 1000,
+          ),
         });
-
-        if(queuedContract) {
-          data.queue.push(queuedContract, HIGH_PRIORITY)
-        } else {
-          data.suspiciousContractByAddress.set(contractAddress, {
-            address: contractAddress,
-            timestamp: Math.floor(
-              new Date(alertEvent.alert.createdAt || Date.now()).valueOf() / 1000,
-            ),
-          });
-        }
       }
     }
 
@@ -480,7 +508,12 @@ const provideHandleTransaction = (
       }
     } else {
       for (const contract of createdContracts) {
-        data.queue.push(contract, NORMAL_PRIORITY);
+        let priority = LOW_PRIORITY;
+        if (data.suspiciousContractByAddress.has(contract.address)) {
+          priority = HIGH_PRIORITY;
+          data.suspiciousContractByAddress.delete(contract.address);
+        }
+        data.queue.push(contract, priority);
         data.detectedContractByAddress.delete(contract.address);
       }
     }

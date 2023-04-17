@@ -19,7 +19,7 @@ describe('real-world tests', () => {
 
   beforeAll(() => {
     handleContract = provideHandleContract(data, botUtils);
-    initialize = provideInitialize(data, config, handleContract);
+    initialize = provideInitialize(data, config, {}, handleContract);
   });
 
   beforeEach(async () => {

@@ -964,7 +964,11 @@ describe('attack simulation', () => {
           payableFunctionEtherValue: 123456,
           totalUsdTransferThreshold: 123456789,
           maliciousContractMLBotId:
-            '0x0b241032ca430d9c02eaa6a52d217bbff046f0d1b3f3d2aa928e42a97150ec91',
+            '0x9aaa5cd64000e8ba4fa2718a467b90055b70815d60351914cc1cbe89fe1c404c',
+          tornadoCashContractBotId:
+            '0x457aa09ca38d60410c8ffa1761f535f23959195a56c9b82e0207801e86b34d99',
+          flashloanContractBotId:
+            '0xda967b32461c6cd3280a49e8b5ff5b7486dbd130f3a603089ed4a6e3b03070e2',
           defaultAnomalyScore: {
             [mockChainId]: 0.123,
           },
@@ -1007,7 +1011,11 @@ describe('attack simulation', () => {
           payableFunctionEtherValue: 123456,
           totalUsdTransferThreshold: 123456789,
           maliciousContractMLBotId:
-            '0x0b241032ca430d9c02eaa6a52d217bbff046f0d1b3f3d2aa928e42a97150ec91',
+            '0x9aaa5cd64000e8ba4fa2718a467b90055b70815d60351914cc1cbe89fe1c404c',
+          tornadoCashContractBotId:
+            '0x457aa09ca38d60410c8ffa1761f535f23959195a56c9b82e0207801e86b34d99',
+          flashloanContractBotId:
+            '0xda967b32461c6cd3280a49e8b5ff5b7486dbd130f3a603089ed4a6e3b03070e2',
           defaultAnomalyScore: {
             [mockChainId]: 0.123,
           },
@@ -1081,7 +1089,7 @@ describe('attack simulation', () => {
       ];
 
       mockData.isTargetMode = false;
-      mockBotUtils.getCreatedContracts.mockReset().mockReturnValue( createdContracts);
+      mockBotUtils.getCreatedContracts.mockReset().mockReturnValue(createdContracts);
 
       await handleTransaction(mockTxEvent);
 
@@ -1218,7 +1226,10 @@ describe('attack simulation', () => {
       payableFunctionEtherValue: 123456,
       totalUsdTransferThreshold: 123456789,
       maliciousContractMLBotId:
-        '0x0b241032ca430d9c02eaa6a52d217bbff046f0d1b3f3d2aa928e42a97150ec91',
+        '0x9aaa5cd64000e8ba4fa2718a467b90055b70815d60351914cc1cbe89fe1c404c',
+      tornadoCashContractBotId:
+        '0x457aa09ca38d60410c8ffa1761f535f23959195a56c9b82e0207801e86b34d99',
+      flashloanContractBotId: '0xda967b32461c6cd3280a49e8b5ff5b7486dbd130f3a603089ed4a6e3b03070e2',
       defaultAnomalyScore: {
         ['1']: 0.123,
       },
@@ -1258,27 +1269,67 @@ describe('attack simulation', () => {
               alertIds: ['SUSPICIOUS-CONTRACT-CREATION'],
               chainId: mockChainId,
             },
+            {
+              botId: mockConfig.flashloanContractBotId,
+              alertIds: ['SUSPICIOUS-FLASHLOAN-CONTRACT-CREATION', 'FLASHLOAN-CONTRACT-CREATION'],
+              chainId: mockChainId,
+            },
+            {
+              botId: mockConfig.tornadoCashContractBotId,
+              alertIds: ['SUSPICIOUS-CONTRACT-CREATION-TORNADO-CASH'],
+              chainId: mockChainId,
+            },
           ],
         },
       });
     });
 
     it('should add suspicious contract to data provider', async () => {
-      const contract = '0x5cbb4eb2cbf21d09afe117cf5dd61b3c1aa87cf9'.toUpperCase();
+      const tests = [
+        {
+          contract: '0x007d52acD501F6C6242B6430B2326e8210d22ef0',
+          botId: mockConfig.maliciousContractMLBotId,
+          alertId: 'SUSPICIOUS-CONTRACT-CREATION',
+          description: '0xd2db126090d3ab52a39b40632059d509aa50aca6 created contract 0x007d52acD501F6C6242B6430B2326e8210d22ef0'
+        },
+        {
+          contract: '0xBEf8C6e2F8d4fCf721cAC6AdbBFBc9F75a3eF2FC',
+          botId: mockConfig.tornadoCashContractBotId,
+          alertId: 'SUSPICIOUS-CONTRACT-CREATION-TORNADO-CASH',
+          description: '0xd2db126090d3ab52a39b40632059d509aa50aca6 created contract 0xBEf8C6e2F8d4fCf721cAC6AdbBFBc9F75a3eF2FC'
+        },
+        {
+          contract: '0x4db0b278063a458165c0e817b1ca54fee6a82730',
+          botId: mockConfig.flashloanContractBotId,
+          alertId: 'SUSPICIOUS-FLASHLOAN-CONTRACT-CREATION',
+          name: 'Suspicious flashloan contract created 0x4db0b278063a458165c0e817b1ca54fee6a82730'
+        },
+        {
+          contract: '0x037d52acD501F6C6242B6430B2326e8210d22ef0',
+          botId: mockConfig.flashloanContractBotId,
+          alertId: 'FLASHLOAN-CONTRACT-CREATION',
+          name: 'Suspicious flashloan contract created 0x027d52acD501F6C6242B6430B2326e8210d22ef0'
+        },
+      ];
 
-      await handleAlert(
-        new AlertEvent(
-          Alert.fromObject({
-            alertId: 'SUSPICIOUS-CONTRACT-CREATION',
-            description: `0xd2db126090d3ab52a39b40632059d509aa50aca6 created contract ${contract}`,
-            source: {
-              bot: { id: mockConfig.maliciousContractMLBotId },
-            },
-          }),
-        ),
-      );
+      for (const test of tests) {
+        const contract = test.contract.toLowerCase();
 
-      mockData.suspiciousContractByAddress.has(contract.toLowerCase());
+        await handleAlert(
+          new AlertEvent(
+            Alert.fromObject({
+              alertId: test.alertId,
+              name: test.name,
+              description: test.description,
+              source: {
+                bot: { id: test.botId },
+              },
+            }),
+          ),
+        );
+
+        mockData.suspiciousContractByAddress.has(contract);
+      }
     });
 
     it('should prioritize suspicious contract in queue', async () => {
@@ -1305,13 +1356,13 @@ describe('attack simulation', () => {
         ),
       );
 
-      let node: { data: CreatedContract; priority: number;  } | undefined;
+      let node: { data: CreatedContract; priority: number } | undefined;
       mockData.queue.remove((_node) => {
         if (_node.data.address === createdContract.address) node = _node;
-        return !!node
+        return !!node;
       });
 
-      expect(node?.priority).toStrictEqual(1)
+      expect(node?.priority).toStrictEqual(1);
     });
   });
 });
