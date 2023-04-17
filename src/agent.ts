@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
-import { queue } from 'async';
+import { priorityQueue } from 'async';
 import {
   getEthersProvider,
   HandleAlert,
@@ -17,6 +17,7 @@ import { createExploitFunctionFinding } from './findings';
 import { BURN_ADDRESSES } from './contants';
 import {
   BotConfig,
+  BotEnv,
   CreatedContract,
   DataContainer,
   HandleContract,
@@ -26,19 +27,26 @@ import {
 
 const data = {} as DataContainer;
 const botConfig: BotConfig = require('../bot-config.json');
+const ENV = process.env as BotEnv;
+
+const NORMAL_PRIORITY = 9;
+const HIGH_PRIORITY = 1;
 
 const provideInitialize = (
   data: DataContainer,
   config: BotConfig,
+  env: BotEnv,
   handleContract: HandleContract,
 ): Initialize => {
   return async function initialize() {
     data.developerAbbreviation = config.developerAbbreviation;
     data.payableFunctionEtherValue = config.payableFunctionEtherValue;
-    data.isDevelopment = process.env.NODE_ENV !== 'production';
-    data.isDebug = process.env.DEBUG === '1';
+    data.isDevelopment = env.NODE_ENV !== 'production';
+    data.isTargetMode = env.TARGET_MODE === '1';
+    data.isDebug = env.DEBUG === '1';
+
     data.provider = getEthersProvider();
-    data.queue = queue(async (createdContract, cb) => {
+    data.queue = priorityQueue(async (createdContract, cb) => {
       await handleContract(createdContract);
       cb();
     }, 1);
@@ -54,6 +62,9 @@ const provideInitialize = (
         threshold: new BigNumber(record.threshold),
       };
     });
+    data.detectedContractByAddress = new Map();
+    data.suspiciousContractByAddress = new Map();
+    data.contractWaitingTime = 2 * 24 * 60 * 60;
     data.logger = new Logger(data.isDevelopment ? LoggerLevel.DEBUG : LoggerLevel.INFO);
     data.analytics = new BotAnalytics(
       data.isDevelopment
@@ -79,7 +90,7 @@ const provideInitialize = (
         subscriptions: [
           {
             botId: config.maliciousContractMLBotId,
-            alertId: 'SAFE-CONTRACT-CREATION',
+            alertIds: ['SUSPICIOUS-CONTRACT-CREATION'],
             chainId: data.chainId,
           },
         ],
@@ -88,14 +99,30 @@ const provideInitialize = (
   };
 };
 
-const providerHandleAlert = (data: DataContainer): HandleAlert => {
+const provideHandleAlert = (data: DataContainer, config: BotConfig): HandleAlert => {
   return async (alertEvent) => {
-    if (alertEvent.alertId === 'SAFE-CONTRACT-CREATION') {
-      const goodContractAddress = alertEvent.alert.description?.slice(-42).toLowerCase();
+    if (alertEvent.botId?.toLowerCase() === config.maliciousContractMLBotId.toLowerCase()) {
+      const contractAddress = alertEvent.alert.description?.slice(-42).toLowerCase();
 
-      if (goodContractAddress) {
-        data.logger.debug(`Contract ${goodContractAddress} removed from the queue.`);
-        data.queue.remove((node) => node.data.address === goodContractAddress);
+      if (!contractAddress) return [];
+
+      if (alertEvent.alertId === 'SUSPICIOUS-CONTRACT-CREATION') {
+        let queuedContract: CreatedContract | undefined;
+        data.queue.remove((node) => {
+          if (node.data.address === contractAddress) queuedContract = node.data
+          return !!queuedContract;
+        });
+
+        if(queuedContract) {
+          data.queue.push(queuedContract, HIGH_PRIORITY)
+        } else {
+          data.suspiciousContractByAddress.set(contractAddress, {
+            address: contractAddress,
+            timestamp: Math.floor(
+              new Date(alertEvent.alert.createdAt || Date.now()).valueOf() / 1000,
+            ),
+          });
+        }
       }
     }
 
@@ -204,7 +231,8 @@ const provideHandleContract = (
                 const deployerChanges =
                   totalBalanceChangesByAddress[createdContract.deployer] || {};
 
-                let isRefund = Object.keys(deployerChanges).length === Object.keys(contractChanges).length;
+                let isRefund =
+                  Object.keys(deployerChanges).length === Object.keys(contractChanges).length;
                 for (const [token, balance] of Object.entries(deployerChanges)) {
                   if (!contractChanges[token]?.abs().eq(balance)) {
                     isRefund = false;
@@ -423,7 +451,10 @@ const provideHandleTransaction = (
     const createdContracts: CreatedContract[] = getCreatedContracts(txEvent);
 
     // update analytics data to calculate anomaly score
-    createdContracts.forEach(() => data.analytics.incrementBotTriggers(txEvent.timestamp));
+    for (const contract of createdContracts) {
+      data.analytics.incrementBotTriggers(txEvent.timestamp);
+      data.detectedContractByAddress.set(contract.address, contract);
+    }
 
     // log scan queue every 10 minutes
     if (data.queue.length() >= 5 && Date.now() - loggedAt > 10 * 60 * 1000) {
@@ -432,13 +463,40 @@ const provideHandleTransaction = (
         `Scan queue: ${data.queue.length()}. ` +
           `Current block: ${txEvent.blockNumber}. ` +
           `Scanning block: ${workers[0].data.blockNumber}. ` +
-          `Block delay: ${txEvent.blockNumber - workers[0].data.blockNumber}. `,
-        `Memory: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)}Mb`,
+          `Block delay: ${txEvent.blockNumber - workers[0].data.blockNumber}. ` +
+          `Memory: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)}Mb`,
       );
       loggedAt = Date.now();
     }
 
-    data.queue.push(createdContracts);
+    if (data.isTargetMode) {
+      for (const contract of data.suspiciousContractByAddress.values()) {
+        const detectedContract = data.detectedContractByAddress.get(contract.address);
+        if (detectedContract) {
+          data.queue.push(detectedContract);
+          data.detectedContractByAddress.delete(contract.address);
+          data.suspiciousContractByAddress.delete(contract.address);
+        }
+      }
+    } else {
+      for (const contract of createdContracts) {
+        data.queue.push(contract, NORMAL_PRIORITY);
+        data.detectedContractByAddress.delete(contract.address);
+      }
+    }
+
+    // remove outdated detected contracts
+    for (const contract of data.detectedContractByAddress.values()) {
+      if (txEvent.timestamp - contract.timestamp > data.contractWaitingTime) {
+        data.detectedContractByAddress.delete(contract.address);
+      }
+    }
+    // remove outdated suspicious contracts
+    for (const contract of data.suspiciousContractByAddress.values()) {
+      if (txEvent.timestamp - contract.timestamp > data.contractWaitingTime) {
+        data.suspiciousContractByAddress.delete(contract.address);
+      }
+    }
 
     if (data.isDebug) {
       await data.queue.drain();
@@ -448,15 +506,15 @@ const provideHandleTransaction = (
   };
 };
 
-const initialize = provideInitialize(data, botConfig, provideHandleContract(data, botUtils));
+const initialize = provideInitialize(data, botConfig, ENV, provideHandleContract(data, botUtils));
 
 export default {
   initialize: initialize,
   handleTransaction: provideHandleTransaction(data, botUtils, initialize),
-  handleAlert: providerHandleAlert(data),
+  handleAlert: provideHandleAlert(data, botConfig),
 
   provideInitialize,
   provideHandleTransaction,
   provideHandleContract,
-  providerHandleAlert,
+  provideHandleAlert,
 };

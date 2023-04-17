@@ -1,7 +1,7 @@
 import BigNumber from 'bignumber.js';
 import { Finding } from 'forta-agent';
 import { providers } from 'ethers';
-import { QueueObject } from 'async';
+import { AsyncPriorityQueue } from 'async';
 import { BotAnalytics } from 'forta-bot-analytics';
 
 import { Logger } from './logger';
@@ -31,10 +31,19 @@ export type CreatedContract = {
 
 export type HandleContract = (createdContract: CreatedContract) => Promise<void>;
 
+export type BotEnv = {
+  NODE_ENV?: 'production' | string;
+  TARGET_MODE?: '1' | string;
+  DEBUG?: '1' | string;
+};
+
 export type DataContainer = {
   logger: Logger;
   provider: providers.JsonRpcProvider;
-  queue: QueueObject<CreatedContract>;
+  queue: AsyncPriorityQueue<CreatedContract>;
+  suspiciousContractByAddress: Map<string, { address: string; timestamp: number }>;
+  detectedContractByAddress: Map<string, CreatedContract>;
+  contractWaitingTime: number;
   payableFunctionEtherValue: number;
   totalUsdTransferThreshold: BigNumber;
   totalTokensThresholdsByAddress: {
@@ -48,24 +57,24 @@ export type DataContainer = {
   analytics: BotAnalytics;
   developerAbbreviation: string;
   isDevelopment: boolean;
+  isTargetMode: boolean;
   isDebug: boolean;
   isInitialized: boolean;
-  initializeError: any;
 };
 
 export type BotConfig = {
-  developerAbbreviation: string
-  payableFunctionEtherValue: number
-  totalUsdTransferThreshold: number
+  developerAbbreviation: string;
+  payableFunctionEtherValue: number;
+  totalUsdTransferThreshold: number;
   defaultAnomalyScore: {
-    [chainId: string]: number
+    [chainId: string]: number;
   };
   maliciousContractMLBotId: string;
   totalTokensThresholdsByChain: {
     [chainId: string]: {
       [tokenAddr: string]: {
         name: string;
-        threshold: number
+        threshold: number;
       };
     };
   };

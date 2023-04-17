@@ -12,6 +12,7 @@ import {
   Finding,
   FindingSeverity,
   FindingType,
+  HandleAlert,
   HandleTransaction,
   Network,
 } from 'forta-agent';
@@ -23,6 +24,7 @@ import { ethers } from 'ethers';
 import { compile, CompilerArtifact } from './utils/compiler';
 import {
   BotConfig,
+  BotEnv,
   CreatedContract,
   DataContainer,
   HandleContract,
@@ -33,7 +35,7 @@ import * as botUtils from '../utils';
 import { Logger, LoggerLevel } from '../logger';
 import agent from '../agent';
 
-const { provideInitialize, provideHandleContract, provideHandleTransaction, providerHandleAlert } =
+const { provideInitialize, provideHandleContract, provideHandleTransaction, provideHandleAlert } =
   agent;
 
 const nominator = (decimals: number) => new BigNumber(10).pow(decimals);
@@ -926,26 +928,37 @@ describe('attack simulation', () => {
   });
 
   describe('handleTransaction', () => {
+    let mockData: DataContainer;
     let mockTxEvent: TestTransactionEvent;
-    let handleTransaction: HandleTransaction;
-    let data: DataContainer;
-
-    const chainId = 1;
+    const mockQueue = {
+      push: jest.fn(),
+      length: jest.fn().mockReturnValue(0),
+      workersList: jest.fn().mockReturnValue([]),
+    };
+    const mockBotUtils = {
+      ...botUtils,
+      getCreatedContracts: jest.fn(),
+    };
+    const mockEnv: BotEnv = {};
     const mockHandleContract = jest.fn();
+    const mockChainId = 1;
+
+    let handleTransaction: HandleTransaction;
 
     beforeAll(() => {
       mockEthersProvider.mockReturnValue({
         getNetwork() {
-          return { chainId };
+          return { chainId: mockChainId };
         },
       });
     });
 
     beforeEach(async () => {
-      data = {} as any;
+      mockData = {} as DataContainer;
       mockTxEvent = new TestTransactionEvent();
+
       const initialize = provideInitialize(
-        data,
+        mockData,
         {
           developerAbbreviation: 'TEST',
           payableFunctionEtherValue: 123456,
@@ -953,7 +966,7 @@ describe('attack simulation', () => {
           maliciousContractMLBotId:
             '0x0b241032ca430d9c02eaa6a52d217bbff046f0d1b3f3d2aa928e42a97150ec91',
           defaultAnomalyScore: {
-            [chainId]: 0.123,
+            [mockChainId]: 0.123,
           },
           totalTokensThresholdsByChain: {
             '1': {
@@ -964,15 +977,59 @@ describe('attack simulation', () => {
             },
           },
         },
+        mockEnv,
         mockHandleContract,
       );
-      handleTransaction = provideHandleTransaction(data, botUtils, initialize);
+
       await initialize();
+
+      handleTransaction = provideHandleTransaction(mockData, mockBotUtils, initialize);
+
+      mockData.queue = mockQueue as any;
       mockHandleContract.mockReset();
+      mockQueue.push.mockClear();
+      mockQueue.length.mockClear();
+      mockQueue.workersList.mockClear();
+
+      mockBotUtils.getCreatedContracts.mockImplementation(() => []);
     });
 
     afterAll(() => {
       mockEthersProvider.mockReset();
+    });
+
+    it('should re-initialize if it has not been initialized yet', async () => {
+      const data = {} as DataContainer;
+      const initialize = provideInitialize(
+        data,
+        {
+          developerAbbreviation: 'TEST',
+          payableFunctionEtherValue: 123456,
+          totalUsdTransferThreshold: 123456789,
+          maliciousContractMLBotId:
+            '0x0b241032ca430d9c02eaa6a52d217bbff046f0d1b3f3d2aa928e42a97150ec91',
+          defaultAnomalyScore: {
+            [mockChainId]: 0.123,
+          },
+          totalTokensThresholdsByChain: {
+            '1': {
+              '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85': {
+                name: 'ENS',
+                threshold: 25,
+              },
+            },
+          },
+        },
+        mockEnv,
+        mockHandleContract,
+      );
+      handleTransaction = provideHandleTransaction(data, botUtils, initialize);
+
+      expect(!!data.isInitialized).toBe(false);
+
+      await handleTransaction(mockTxEvent);
+
+      expect(data.isInitialized).toBe(true);
     });
 
     it('should return empty findings if there are no new findings in data container', async () => {
@@ -999,49 +1056,163 @@ describe('attack simulation', () => {
           severity: FindingSeverity.Unknown,
         }),
       ];
-      data.findings.push(...expectedFindings);
+      mockData.findings.push(...expectedFindings);
       findings = await handleTransaction(mockTxEvent);
       expect(findings).toStrictEqual(expectedFindings);
-      expect(data.findings).toStrictEqual([]);
+      expect(mockData.findings).toStrictEqual([]);
     });
 
-    it('should re-initialize if it has not been initialized yet', async () => {
-      const data = {} as DataContainer;
-      const initialize = provideInitialize(
-        data,
+    it('should push all detected contracts to queue if isTargetMode is disabled', async () => {
+      const createdContracts: CreatedContract[] = [
         {
-          developerAbbreviation: 'TEST',
-          payableFunctionEtherValue: 123456,
-          totalUsdTransferThreshold: 123456789,
-          maliciousContractMLBotId:
-            '0x0b241032ca430d9c02eaa6a52d217bbff046f0d1b3f3d2aa928e42a97150ec91',
-          defaultAnomalyScore: {
-            [chainId]: 0.123,
-          },
-          totalTokensThresholdsByChain: {
-            '1': {
-              '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85': {
-                name: 'ENS',
-                threshold: 25,
-              },
-            },
-          },
+          address: '0x1',
+          deployer: '0x2',
+          timestamp: 1000,
+          blockNumber: 1234,
+          txHash: '0xHASH',
         },
-        mockHandleContract,
-      );
-      handleTransaction = provideHandleTransaction(data, botUtils, initialize);
+        {
+          address: '0x3',
+          deployer: '0x4',
+          timestamp: 1000,
+          blockNumber: 1234,
+          txHash: '0xHASH',
+        },
+      ];
 
-      expect(!!data.isInitialized).toBe(false);
+      mockData.isTargetMode = false;
+      mockBotUtils.getCreatedContracts.mockReset().mockReturnValue( createdContracts);
 
       await handleTransaction(mockTxEvent);
 
-      expect(data.isInitialized).toBe(true);
+      expect(mockQueue.push).toBeCalledTimes(createdContracts.length);
+    });
+
+    it('should push only suspicious contracts to queue if isTargetMode is enabled', async () => {
+      const createdContracts: CreatedContract[] = [
+        {
+          address: '0x1',
+          deployer: '0x2',
+          timestamp: 1000,
+          blockNumber: 1234,
+          txHash: '0xHASH',
+        },
+        {
+          address: '0x3',
+          deployer: '0x4',
+          timestamp: 1000,
+          blockNumber: 1234,
+          txHash: '0xHASH',
+        },
+      ];
+
+      mockData.isTargetMode = true;
+      mockBotUtils.getCreatedContracts.mockImplementation(() => createdContracts);
+
+      await handleTransaction(mockTxEvent);
+
+      // should push to detected contracts
+      expect(mockData.detectedContractByAddress.size).toStrictEqual(createdContracts.length);
+      expect(mockQueue.push).not.toBeCalled();
+
+      // simulating result of the handleAlert()
+      mockData.suspiciousContractByAddress.set(createdContracts[1].address, createdContracts[1]);
+
+      await handleTransaction(mockTxEvent);
+
+      expect(mockQueue.push).toBeCalledTimes(1);
+      expect(mockQueue.push.mock.calls[0][0]).toBe(createdContracts[1]);
+    });
+
+    it('should clear detected and suspicious contracts if they are outdated', async () => {
+      const interval = 1000;
+
+      const contract1: CreatedContract = {
+        address: '0x1',
+        deployer: '0x2',
+        timestamp: interval,
+        blockNumber: 100,
+        txHash: '0xHASH1',
+      };
+      const contract2: CreatedContract = {
+        address: '0x3',
+        deployer: '0x4',
+        timestamp: interval,
+        blockNumber: 1234,
+        txHash: '0xHASH2',
+      };
+      const contract3: CreatedContract = {
+        address: '0x5',
+        deployer: '0x6',
+        timestamp: interval * 2,
+        blockNumber: 200,
+        txHash: '0xHASH3',
+      };
+      const contract4: CreatedContract = {
+        address: '0x7',
+        deployer: '0x8',
+        timestamp: interval * 3,
+        blockNumber: 300,
+        txHash: '0xHASH4',
+      };
+
+      mockData.contractWaitingTime = interval;
+
+      mockData.detectedContractByAddress.set(contract1.address, contract1);
+      mockData.detectedContractByAddress.set(contract2.address, contract2);
+      mockData.detectedContractByAddress.set(contract3.address, contract3);
+      mockData.detectedContractByAddress.set(contract4.address, contract4);
+      mockData.suspiciousContractByAddress.set(contract1.address, contract1);
+      mockData.suspiciousContractByAddress.set(contract2.address, contract2);
+      mockData.suspiciousContractByAddress.set(contract3.address, contract3);
+      mockData.suspiciousContractByAddress.set(contract4.address, contract4);
+
+      mockTxEvent.setTimestamp(contract1.timestamp);
+
+      await handleTransaction(mockTxEvent);
+
+      expect(mockData.detectedContractByAddress.size).toStrictEqual(4);
+      expect(mockData.suspiciousContractByAddress.size).toStrictEqual(4);
+
+      // ---------
+
+      mockTxEvent.setTimestamp(contract1.timestamp + mockData.contractWaitingTime + 1);
+
+      await handleTransaction(mockTxEvent);
+
+      expect(mockData.detectedContractByAddress.size).toStrictEqual(2);
+      expect(mockData.detectedContractByAddress.has(contract3.address));
+      expect(mockData.detectedContractByAddress.has(contract4.address));
+      expect(mockData.suspiciousContractByAddress.size).toStrictEqual(2);
+      expect(mockData.suspiciousContractByAddress.has(contract3.address));
+      expect(mockData.suspiciousContractByAddress.has(contract4.address));
+
+      // ---------
+
+      mockTxEvent.setTimestamp(contract1.timestamp + mockData.contractWaitingTime * 2 + 1);
+
+      await handleTransaction(mockTxEvent);
+
+      expect(mockData.detectedContractByAddress.size).toStrictEqual(1);
+      expect(mockData.detectedContractByAddress.has(contract4.address));
+      expect(mockData.suspiciousContractByAddress.size).toStrictEqual(1);
+      expect(mockData.suspiciousContractByAddress.has(contract4.address));
+
+      // ---------
+
+      mockTxEvent.setTimestamp(contract1.timestamp + mockData.contractWaitingTime * 3 + 1);
+
+      await handleTransaction(mockTxEvent);
+
+      expect(mockData.detectedContractByAddress.size).toStrictEqual(0);
+      expect(mockData.suspiciousContractByAddress.size).toStrictEqual(0);
     });
   });
 
   describe('handleAlert', () => {
     let mockData: DataContainer;
     const mockChainId = 56;
+    const mockEnv: BotEnv = {};
     const mockConfig: BotConfig = {
       developerAbbreviation: 'TEST',
       payableFunctionEtherValue: 123456,
@@ -1055,6 +1226,8 @@ describe('attack simulation', () => {
     };
     const mockHandleContract = jest.fn().mockImplementation(async () => []);
 
+    let handleAlert: HandleAlert;
+
     beforeAll(() => {
       mockEthersProvider.mockReturnValue({
         getNetwork() {
@@ -1065,19 +1238,24 @@ describe('attack simulation', () => {
 
     beforeEach(() => {
       mockData = {} as DataContainer;
-      provideInitialize(mockData, mockConfig, mockHandleContract)();
+      handleAlert = provideHandleAlert(mockData, mockConfig);
+      provideInitialize(mockData, mockConfig, mockEnv, mockHandleContract)();
       mockHandleContract.mockClear();
     });
 
+    afterAll(() => {
+      mockEthersProvider.mockReset();
+    });
+
     it('should return alertConfig from initialize()', async () => {
-      const result = await provideInitialize(mockData, mockConfig, mockHandleContract)();
+      const result = await provideInitialize(mockData, mockConfig, mockEnv, mockHandleContract)();
 
       expect(result).toMatchObject({
         alertConfig: {
           subscriptions: [
             {
               botId: mockConfig.maliciousContractMLBotId,
-              alertId: 'SAFE-CONTRACT-CREATION',
+              alertIds: ['SUSPICIOUS-CONTRACT-CREATION'],
               chainId: mockChainId,
             },
           ],
@@ -1085,34 +1263,14 @@ describe('attack simulation', () => {
       });
     });
 
-    it('should filter out good contracts from a SAFE-CONTRACT-CREATION alert', async () => {
-      const item1 = {
-        deployer: '0x1',
-        address: '0xd2db126090d3ab52a39b40632059d509aa50aca6',
-        txHash: '0xHASH1',
-        blockNumber: 123,
-        timestamp: 1234,
-      };
-      const item2 = {
-        deployer: '0x2',
-        address: '0xA594358ec8db111FF96C7046E36DCc1486a6837F',
-        txHash: '0xHASH2',
-        blockNumber: 1234,
-        timestamp: 12345,
-      };
+    it('should add suspicious contract to data provider', async () => {
+      const contract = '0x5cbb4eb2cbf21d09afe117cf5dd61b3c1aa87cf9'.toUpperCase();
 
-      // to not start executing
-      mockData.queue.pause();
-      mockData.queue.push({ ...item1, address: item1.address.toLowerCase() });
-      mockData.queue.push({ ...item2, address: item2.address.toLowerCase() });
-
-      expect(mockData.queue.length()).toStrictEqual(2);
-
-      await providerHandleAlert(mockData)(
+      await handleAlert(
         new AlertEvent(
           Alert.fromObject({
-            alertId: 'SAFE-CONTRACT-CREATION',
-            description: `0xd2db126090d3ab52a39b40632059d509aa50aca6 created contract ${item2.address}`,
+            alertId: 'SUSPICIOUS-CONTRACT-CREATION',
+            description: `0xd2db126090d3ab52a39b40632059d509aa50aca6 created contract ${contract}`,
             source: {
               bot: { id: mockConfig.maliciousContractMLBotId },
             },
@@ -1120,7 +1278,40 @@ describe('attack simulation', () => {
         ),
       );
 
-      expect(mockData.queue.length()).toStrictEqual(1);
+      mockData.suspiciousContractByAddress.has(contract.toLowerCase());
+    });
+
+    it('should prioritize suspicious contract in queue', async () => {
+      const createdContract: CreatedContract = {
+        address: '0x5cbb4eb2cbf21d09afe117cf5dd61b3c1aa87cf9',
+        timestamp: 1234,
+        deployer: '0x1',
+        blockNumber: 1234,
+        txHash: '0xHASH',
+      };
+
+      mockData.queue.pause();
+      mockData.queue.push(createdContract, 9);
+
+      await handleAlert(
+        new AlertEvent(
+          Alert.fromObject({
+            alertId: 'SUSPICIOUS-CONTRACT-CREATION',
+            description: `0xd2db126090d3ab52a39b40632059d509aa50aca6 created contract ${createdContract.address}`,
+            source: {
+              bot: { id: mockConfig.maliciousContractMLBotId },
+            },
+          }),
+        ),
+      );
+
+      let node: { data: CreatedContract; priority: number;  } | undefined;
+      mockData.queue.remove((_node) => {
+        if (_node.data.address === createdContract.address) node = _node;
+        return !!node
+      });
+
+      expect(node?.priority).toStrictEqual(1)
     });
   });
 });
