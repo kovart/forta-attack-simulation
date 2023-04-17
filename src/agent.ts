@@ -86,7 +86,9 @@ const provideInitialize = (
       },
     );
     data.isInitialized = true;
-    data.logger.debug(`Initialized. Is Development: ${data.isDevelopment}. Is Target Mode: ${data.isTargetMode}.`);
+    data.logger.debug(
+      `Initialized. Is Development: ${data.isDevelopment}. Is Target Mode: ${data.isTargetMode}.`,
+    );
 
     return {
       alertConfig: {
@@ -145,7 +147,9 @@ const provideHandleAlert = (data: DataContainer, config: BotConfig): HandleAlert
       if (queuedContract) {
         data.queue.push(queuedContract, handler.getPriority());
       } else {
-        data.logger.info(`Changed scan priority of ${contractAddress} due to alert "${alertEvent.alertId}"`)
+        data.logger.info(
+          `Changed scan priority of ${contractAddress} due to alert "${alertEvent.alertId}"`,
+        );
         data.suspiciousContractByAddress.set(contractAddress, {
           address: contractAddress,
           timestamp: Math.floor(
@@ -260,25 +264,38 @@ const provideHandleContract = (
                 const deployerChanges =
                   totalBalanceChangesByAddress[createdContract.deployer] || {};
 
-                let isZeroBalance = true;
+                // check if the same tokens have been transferred
                 let isRefund =
                   Object.keys(deployerChanges).length === Object.keys(contractChanges).length;
-                for (const [token, balance] of Object.entries(deployerChanges)) {
-                  if (!contractChanges[token]?.isZero()) isZeroBalance = false;
-                  if (!contractChanges[token]?.abs().eq(balance)) {
-                    isRefund = false;
-                    break;
+
+                // check if the same amount of tokens have been transferred
+                if (isRefund) {
+                  for (const [token, balance] of Object.entries(deployerChanges)) {
+                    if (!contractChanges[token]?.abs().eq(balance)) {
+                      isRefund = false;
+                      break;
+                    }
                   }
                 }
 
-                if (isRefund || isZeroBalance) {
-                  if (isZeroBalance) {
+                if(isRefund) {
+                  let isZeroBalance = false;
+                  for (const balance of Object.values(deployerChanges)) {
+                    if (!balance.isZero()) {
+                      isZeroBalance = false;
+                      break;
+                    }
+                  }
+
+                  // we log only when more than 0 tokens are transferred
+                  if (!isZeroBalance) {
                     data.logger.warn(
-                      'Skipped refund function',
+                      'Skip refund function',
                       sighash,
                       JSON.stringify(totalBalanceChangesByAddress),
                     );
                   }
+
                   break;
                 }
               }
@@ -506,7 +523,7 @@ const provideHandleTransaction = (
       for (const contract of data.suspiciousContractByAddress.values()) {
         const detectedContract = data.detectedContractByAddress.get(contract.address);
         if (detectedContract) {
-          data.logger.info(`Pushed suspicious contract: ${contract.address}`)
+          data.logger.info(`Pushed suspicious contract: ${contract.address}`);
           data.queue.push(detectedContract);
           data.detectedContractByAddress.delete(contract.address);
           data.suspiciousContractByAddress.delete(contract.address);
