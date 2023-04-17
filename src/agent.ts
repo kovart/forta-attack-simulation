@@ -259,21 +259,25 @@ const provideHandleContract = (
                 const deployerChanges =
                   totalBalanceChangesByAddress[createdContract.deployer] || {};
 
+                let isZeroBalance = true;
                 let isRefund =
                   Object.keys(deployerChanges).length === Object.keys(contractChanges).length;
                 for (const [token, balance] of Object.entries(deployerChanges)) {
+                  if (!contractChanges[token]?.isZero()) isZeroBalance = false;
                   if (!contractChanges[token]?.abs().eq(balance)) {
                     isRefund = false;
                     break;
                   }
                 }
 
-                if (isRefund) {
-                  data.logger.warn(
-                    'Skipped refund function',
-                    sighash,
-                    JSON.stringify(totalBalanceChangesByAddress),
-                  );
+                if (isRefund || isZeroBalance) {
+                  if (isZeroBalance) {
+                    data.logger.warn(
+                      'Skipped refund function',
+                      sighash,
+                      JSON.stringify(totalBalanceChangesByAddress),
+                    );
+                  }
                   break;
                 }
               }
