@@ -259,7 +259,11 @@ const provideHandleContract = (
                 });
 
               // skip if it is a refund
-              if (Object.keys(totalBalanceChangesByAddress).length === 2) {
+              if (
+                Object.keys(totalBalanceChangesByAddress).length === 2 &&
+                totalBalanceChangesByAddress[createdContract.address] &&
+                totalBalanceChangesByAddress[createdContract.deployer]
+              ) {
                 const contractChanges = totalBalanceChangesByAddress[createdContract.address] || {};
                 const deployerChanges =
                   totalBalanceChangesByAddress[createdContract.deployer] || {};
@@ -278,7 +282,7 @@ const provideHandleContract = (
                   }
                 }
 
-                if(isRefund) {
+                if (isRefund) {
                   let isZeroBalance = false;
                   for (const balance of Object.values(deployerChanges)) {
                     if (!balance.isZero()) {
