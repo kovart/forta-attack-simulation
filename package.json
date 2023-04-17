@@ -28,6 +28,7 @@
     "start:prod": "forta-agent run --prod",
     "start:docker": "docker run --rm -it $(docker build -q .)",
     "publish": "forta-agent publish",
+    "publish:targeted": "bash ./build_custom.bash",
     "tx": "npm run build && cross-env DEBUG=1 forta-agent run --tx",
     "block": "npm run build && cross-env DEBUG=1 forta-agent run --block",
     "range": "npm run build && cross-env DEBUG=1 forta-agent run --range",

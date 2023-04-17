@@ -8,6 +8,7 @@ RUN npm run build
 # Final stage: copy compiled Javascript from previous stage and install production dependencies
 FROM --platform=linux/x86_64 node:12-alpine
 ENV NODE_ENV=production
+ENV TARGET_MODE=0
 # Uncomment the following line to enable agent logging
 LABEL "network.forta.settings.agent-logs.enable"="true"
 WORKDIR /app
