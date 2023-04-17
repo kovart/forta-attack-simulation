@@ -1,7 +1,7 @@
 {
   "developerAbbreviation": "AK",
-  "payableFunctionEtherValue": 5,
-  "totalUsdTransferThreshold": 18000,
+  "payableFunctionEtherValue": 3,
+  "totalUsdTransferThreshold": 9000,
   "defaultAnomalyScore": {
     "1": 0.0002
   },
