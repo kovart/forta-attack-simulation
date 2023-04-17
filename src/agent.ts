@@ -86,7 +86,7 @@ const provideInitialize = (
       },
     );
     data.isInitialized = true;
-    data.logger.debug('Initialized');
+    data.logger.debug(`Initialized. Is Development: ${data.isDevelopment}. Is Target Mode: ${data.isTargetMode}.`);
 
     return {
       alertConfig: {
@@ -145,6 +145,7 @@ const provideHandleAlert = (data: DataContainer, config: BotConfig): HandleAlert
       if (queuedContract) {
         data.queue.push(queuedContract, handler.getPriority());
       } else {
+        data.logger.info(`Changed scan priority of ${contractAddress} due to alert "${alertEvent.alertId}"`)
         data.suspiciousContractByAddress.set(contractAddress, {
           address: contractAddress,
           timestamp: Math.floor(
@@ -505,6 +506,7 @@ const provideHandleTransaction = (
       for (const contract of data.suspiciousContractByAddress.values()) {
         const detectedContract = data.detectedContractByAddress.get(contract.address);
         if (detectedContract) {
+          data.logger.info(`Pushed suspicious contract: ${contract.address}`)
           data.queue.push(detectedContract);
           data.detectedContractByAddress.delete(contract.address);
           data.suspiciousContractByAddress.delete(contract.address);
