@@ -116,6 +116,18 @@ const provideInitialize = (
 
 const provideHandleAlert = (data: DataContainer, config: BotConfig): HandleAlert => {
   return async (alertEvent) => {
+    // temp fix of the issue with caused by receiving alerts to which the bot was previously subscribed to
+    if (
+      ![
+        'SUSPICIOUS-CONTRACT-CREATION',
+        'SUSPICIOUS-FLASHLOAN-CONTRACT-CREATION',
+        'FLASHLOAN-CONTRACT-CREATION',
+        'SUSPICIOUS-CONTRACT-CREATION-TORNADO-CASH',
+      ].includes(alertEvent.alertId || '')
+    ) {
+      return [];
+    }
+
     const handlers = {
       [config.tornadoCashContractBotId]: {
         getPriority: () => NORMAL_PRIORITY,
