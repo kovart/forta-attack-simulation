@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#echo "Building targeted version of the bot..."
+echo "Building targeted version of the bot..."
 
 cp -f package.json package.json.temp
 cp -f forta.config.json forta.config.json.temp
@@ -11,8 +11,8 @@ echo "Modifying package.json, forta.config.json, Dockerfile..."
 npm pkg set 'name'='attack-simulation-bot-targeted'
 npm pkg set 'description'='This is a customized version of the attack-simulation-bot that scans exclusively for suspicious contracts flagged by other bots, resulting in faster detection of exploit functions.'
 npm pkg delete "chainSettings"
-npm pkg set 'chainSettings.default.shards'='5'
-npm pkg set 'chainSettings.default.target'='2'
+npm pkg set 'chainSettings.default.shards'=5 --json
+npm pkg set 'chainSettings.default.target'=2 --json
 
 SOURCE_KEY="agentId2"
 DESTINATION_KEY="agentId"
