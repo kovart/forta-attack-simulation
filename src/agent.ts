@@ -128,7 +128,7 @@ const provideHandleAlert = (data: DataContainer, config: BotConfig): HandleAlert
         'SUSPICIOUS-FLASHLOAN-CONTRACT-CREATION',
         'FLASHLOAN-CONTRACT-CREATION',
         'SUSPICIOUS-CONTRACT-CREATION-TORNADO-CASH',
-        'AK-AZTEC-PROTOCOL-FUNDED-ACCOUNT-DEPLOYMENT'
+        'AK-AZTEC-PROTOCOL-FUNDED-ACCOUNT-DEPLOYMENT',
       ].includes(alertEvent.alertId || '')
     ) {
       return [];
@@ -168,10 +168,12 @@ const provideHandleAlert = (data: DataContainer, config: BotConfig): HandleAlert
 
       if (queuedContract) {
         data.queue.push(queuedContract, handler.getPriority());
+        if (!data.isTargetMode) {
+          data.logger.info(
+            `Changed scan priority of ${contractAddress} due to "${alertEvent.alertId}" alert`,
+          );
+        }
       } else {
-        data.logger.info(
-          `Changed scan priority of ${contractAddress} due to alert "${alertEvent.alertId}"`,
-        );
         data.suspiciousContractByAddress.set(contractAddress, {
           address: contractAddress,
           timestamp: Math.floor(
