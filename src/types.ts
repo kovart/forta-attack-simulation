@@ -69,6 +69,7 @@ export type BotConfig = {
   defaultAnomalyScore: {
     [chainId: string]: number;
   };
+  aztecContractBotId: string;
   maliciousContractMLBotId: string;
   tornadoCashContractBotId: string;
   flashloanContractBotId: string;

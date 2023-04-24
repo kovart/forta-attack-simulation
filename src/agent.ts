@@ -108,6 +108,11 @@ const provideInitialize = (
             alertIds: ['SUSPICIOUS-CONTRACT-CREATION-TORNADO-CASH'],
             chainId: data.chainId,
           },
+          {
+            botId: config.aztecContractBotId,
+            alertIds: ['AK-AZTEC-PROTOCOL-FUNDED-ACCOUNT-DEPLOYMENT'],
+            chainId: data.chainId,
+          },
         ],
       },
     };
@@ -123,6 +128,7 @@ const provideHandleAlert = (data: DataContainer, config: BotConfig): HandleAlert
         'SUSPICIOUS-FLASHLOAN-CONTRACT-CREATION',
         'FLASHLOAN-CONTRACT-CREATION',
         'SUSPICIOUS-CONTRACT-CREATION-TORNADO-CASH',
+        'AK-AZTEC-PROTOCOL-FUNDED-ACCOUNT-DEPLOYMENT'
       ].includes(alertEvent.alertId || '')
     ) {
       return [];
@@ -132,6 +138,10 @@ const provideHandleAlert = (data: DataContainer, config: BotConfig): HandleAlert
       [config.tornadoCashContractBotId]: {
         getPriority: () => NORMAL_PRIORITY,
         getContractAddress: () => alertEvent.alert.description?.slice(0, 42).toLowerCase(),
+      },
+      [config.aztecContractBotId]: {
+        getPriority: () => HIGH_PRIORITY,
+        getContractAddress: () => alertEvent.alert.name?.slice(-42).toLowerCase(),
       },
       [config.maliciousContractMLBotId]: {
         getPriority: () => HIGH_PRIORITY,

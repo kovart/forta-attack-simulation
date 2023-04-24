@@ -969,6 +969,7 @@ describe('attack simulation', () => {
             '0x457aa09ca38d60410c8ffa1761f535f23959195a56c9b82e0207801e86b34d99',
           flashloanContractBotId:
             '0xda967b32461c6cd3280a49e8b5ff5b7486dbd130f3a603089ed4a6e3b03070e2',
+          aztecContractBotId: '0x127e62dffbe1a9fa47448c29c3ef4e34f515745cb5df4d9324c2a0adae59eeef',
           defaultAnomalyScore: {
             [mockChainId]: 0.123,
           },
@@ -1016,6 +1017,7 @@ describe('attack simulation', () => {
             '0x457aa09ca38d60410c8ffa1761f535f23959195a56c9b82e0207801e86b34d99',
           flashloanContractBotId:
             '0xda967b32461c6cd3280a49e8b5ff5b7486dbd130f3a603089ed4a6e3b03070e2',
+          aztecContractBotId: '0x127e62dffbe1a9fa47448c29c3ef4e34f515745cb5df4d9324c2a0adae59eeef',
           defaultAnomalyScore: {
             [mockChainId]: 0.123,
           },
@@ -1230,6 +1232,7 @@ describe('attack simulation', () => {
       tornadoCashContractBotId:
         '0x457aa09ca38d60410c8ffa1761f535f23959195a56c9b82e0207801e86b34d99',
       flashloanContractBotId: '0xda967b32461c6cd3280a49e8b5ff5b7486dbd130f3a603089ed4a6e3b03070e2',
+      aztecContractBotId: '0x127e62dffbe1a9fa47448c29c3ef4e34f515745cb5df4d9324c2a0adae59eeef',
       defaultAnomalyScore: {
         ['1']: 0.123,
       },
@@ -1279,6 +1282,11 @@ describe('attack simulation', () => {
               alertIds: ['SUSPICIOUS-CONTRACT-CREATION-TORNADO-CASH'],
               chainId: mockChainId,
             },
+            {
+              botId: mockConfig.aztecContractBotId,
+              alertIds: ['AK-AZTEC-PROTOCOL-FUNDED-ACCOUNT-DEPLOYMENT'],
+              chainId: mockChainId,
+            },
           ],
         },
       });
@@ -1290,25 +1298,33 @@ describe('attack simulation', () => {
           contract: '0x007d52acD501F6C6242B6430B2326e8210d22ef0',
           botId: mockConfig.maliciousContractMLBotId,
           alertId: 'SUSPICIOUS-CONTRACT-CREATION',
-          description: '0xd2db126090d3ab52a39b40632059d509aa50aca6 created contract 0x007d52acD501F6C6242B6430B2326e8210d22ef0'
+          description:
+            '0xd2db126090d3ab52a39b40632059d509aa50aca6 created contract 0x007d52acD501F6C6242B6430B2326e8210d22ef0',
         },
         {
           contract: '0xBEf8C6e2F8d4fCf721cAC6AdbBFBc9F75a3eF2FC',
           botId: mockConfig.tornadoCashContractBotId,
           alertId: 'SUSPICIOUS-CONTRACT-CREATION-TORNADO-CASH',
-          description: '0xd2db126090d3ab52a39b40632059d509aa50aca6 created contract 0xBEf8C6e2F8d4fCf721cAC6AdbBFBc9F75a3eF2FC'
+          description:
+            '0xd2db126090d3ab52a39b40632059d509aa50aca6 created contract 0xBEf8C6e2F8d4fCf721cAC6AdbBFBc9F75a3eF2FC',
         },
         {
           contract: '0x4db0b278063a458165c0e817b1ca54fee6a82730',
           botId: mockConfig.flashloanContractBotId,
           alertId: 'SUSPICIOUS-FLASHLOAN-CONTRACT-CREATION',
-          name: 'Suspicious flashloan contract created 0x4db0b278063a458165c0e817b1ca54fee6a82730'
+          name: 'Suspicious flashloan contract created 0x4db0b278063a458165c0e817b1ca54fee6a82730',
         },
         {
           contract: '0x037d52acD501F6C6242B6430B2326e8210d22ef0',
           botId: mockConfig.flashloanContractBotId,
           alertId: 'FLASHLOAN-CONTRACT-CREATION',
-          name: 'Suspicious flashloan contract created 0x027d52acD501F6C6242B6430B2326e8210d22ef0'
+          name: 'Suspicious flashloan contract created 0x027d52acD501F6C6242B6430B2326e8210d22ef0',
+        },
+        {
+          contract: '0xcdb96d3aef363a036c6cf6c9b5736d79f0e404e2',
+          botId: mockConfig.aztecContractBotId,
+          alertId: 'AK-AZTEC-PROTOCOL-FUNDED-ACCOUNT-DEPLOYMENT',
+          name: '0xd2db126090d3ab52a39b40632059d509aa50aca6 created contract 0xcdb96d3aef363a036c6cf6c9b5736d79f0e404e2',
         },
       ];
 
