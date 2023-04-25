@@ -1,12 +1,12 @@
 # Build stage: compile Typescript to Javascript
-FROM --platform=linux/x86_64 node:18.16-alpine AS builder
+FROM --platform=linux/x86_64 node:18-slim AS builder
 WORKDIR /app
 COPY . .
 RUN npm ci
 RUN npm run build
 
 # Final stage: copy compiled Javascript from previous stage and install production dependencies
-FROM --platform=linux/x86_64 node:18.16-alpine
+FROM --platform=linux/x86_64 node:18-slim
 ENV NODE_ENV=production
 ENV TARGET_MODE=0
 # Uncomment the following line to enable agent logging

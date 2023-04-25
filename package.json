@@ -80,7 +80,7 @@
     "evm": "^0.2.0",
     "forta-agent": "^0.1.26",
     "forta-bot-analytics": "^0.0.4",
-    "ganache": "^7.5.0",
+    "ganache": "^7.8.0",
     "js-combinatorics": "^2.1.1",
     "lru-cache": "^7.14.0",
     "sqlite3": "^5.1.6"
