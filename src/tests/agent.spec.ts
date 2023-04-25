@@ -1,3 +1,5 @@
+import { InMemoryDatabase } from '../database';
+
 const mockEthersProvider = jest.fn();
 
 jest.mock('forta-agent', () => ({
@@ -983,6 +985,7 @@ describe('attack simulation', () => {
           },
         },
         mockEnv,
+        new InMemoryDatabase(),
         mockHandleContract,
       );
 
@@ -1031,6 +1034,7 @@ describe('attack simulation', () => {
           },
         },
         mockEnv,
+        new InMemoryDatabase(),
         mockHandleContract,
       );
       handleTransaction = provideHandleTransaction(data, botUtils, initialize);
@@ -1126,12 +1130,16 @@ describe('attack simulation', () => {
       expect(mockQueue.push).not.toBeCalled();
 
       // simulating result of the handleAlert()
-      mockData.suspiciousContractByAddress.set(createdContracts[1].address, createdContracts[1]);
+      mockData.suspiciousContractByAddress.set(createdContracts[1].address, {
+        ...createdContracts[1],
+        priority: 3,
+      });
 
       await handleTransaction(mockTxEvent);
 
       expect(mockQueue.push).toBeCalledTimes(1);
       expect(mockQueue.push.mock.calls[0][0]).toBe(createdContracts[1]);
+      expect(mockQueue.push.mock.calls[0][1]).toBe(3);
     });
 
     it('should clear detected and suspicious contracts if they are outdated', async () => {
@@ -1172,10 +1180,10 @@ describe('attack simulation', () => {
       mockData.detectedContractByAddress.set(contract2.address, contract2);
       mockData.detectedContractByAddress.set(contract3.address, contract3);
       mockData.detectedContractByAddress.set(contract4.address, contract4);
-      mockData.suspiciousContractByAddress.set(contract1.address, contract1);
-      mockData.suspiciousContractByAddress.set(contract2.address, contract2);
-      mockData.suspiciousContractByAddress.set(contract3.address, contract3);
-      mockData.suspiciousContractByAddress.set(contract4.address, contract4);
+      mockData.suspiciousContractByAddress.set(contract1.address, { ...contract1, priority: 1 });
+      mockData.suspiciousContractByAddress.set(contract2.address, { ...contract1, priority: 1 });
+      mockData.suspiciousContractByAddress.set(contract3.address, { ...contract1, priority: 1 });
+      mockData.suspiciousContractByAddress.set(contract4.address, { ...contract1, priority: 1 });
 
       mockTxEvent.setTimestamp(contract1.timestamp);
 
@@ -1253,7 +1261,13 @@ describe('attack simulation', () => {
     beforeEach(() => {
       mockData = {} as DataContainer;
       handleAlert = provideHandleAlert(mockData, mockConfig);
-      provideInitialize(mockData, mockConfig, mockEnv, mockHandleContract)();
+      provideInitialize(
+        mockData,
+        mockConfig,
+        mockEnv,
+        new InMemoryDatabase(),
+        mockHandleContract,
+      )();
       mockHandleContract.mockClear();
     });
 
@@ -1262,7 +1276,13 @@ describe('attack simulation', () => {
     });
 
     it('should return alertConfig from initialize()', async () => {
-      const result = await provideInitialize(mockData, mockConfig, mockEnv, mockHandleContract)();
+      const result = await provideInitialize(
+        mockData,
+        mockConfig,
+        mockEnv,
+        new InMemoryDatabase(),
+        mockHandleContract,
+      )();
 
       expect(result).toMatchObject({
         alertConfig: {

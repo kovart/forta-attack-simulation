@@ -1,5 +1,7 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
+import dotenv from 'dotenv';
+import path from 'path';
 import { priorityQueue } from 'async';
 import {
   getEthersProvider,
@@ -13,6 +15,7 @@ import { BotAnalytics, FortaBotStorage, InMemoryBotStorage } from 'forta-bot-ana
 
 import * as botUtils from './utils';
 import { Logger, LoggerLevel } from './logger';
+import { IDatabase, InMemoryDatabase, SqlDatabase } from './database';
 import { createExploitFunctionFinding } from './findings';
 import { BURN_ADDRESSES } from './contants';
 import {
@@ -25,9 +28,15 @@ import {
   TokenInterface,
 } from './types';
 
+dotenv.config();
+
+const ENV = process.env as BotEnv;
 const data = {} as DataContainer;
 const botConfig: BotConfig = require('../bot-config.json');
-const ENV = process.env as BotEnv;
+const database: IDatabase =
+  ENV.NODE_ENV !== 'production'
+    ? new SqlDatabase(path.resolve(__dirname, './bot.db'))
+    : new InMemoryDatabase();
 
 const LOW_PRIORITY = 9;
 const NORMAL_PRIORITY = 4;
@@ -37,6 +46,7 @@ const provideInitialize = (
   data: DataContainer,
   config: BotConfig,
   env: BotEnv,
+  database: IDatabase,
   handleContract: HandleContract,
 ): Initialize => {
   return async function initialize() {
@@ -46,11 +56,9 @@ const provideInitialize = (
     data.isTargetMode = env.TARGET_MODE === '1';
     data.isDebug = env.DEBUG === '1';
 
+    data.logger = new Logger(data.isDevelopment ? LoggerLevel.DEBUG : LoggerLevel.INFO);
+
     data.provider = getEthersProvider();
-    data.queue = priorityQueue(async (createdContract, cb) => {
-      await handleContract(createdContract);
-      cb();
-    }, 1);
     data.findings = [];
     data.totalUsdTransferThreshold = new BigNumber(config.totalUsdTransferThreshold);
     data.totalTokensThresholdsByAddress = {};
@@ -64,11 +72,22 @@ const provideInitialize = (
       };
     });
 
-    data.detectedContractByAddress = new Map();
+    data.database = database;
+
+    await data.database.initialize();
+
+    data.detectedContractByAddress = new Map(
+      (await data.database.getContracts()).map((v) => [v.address, v]),
+    );
+    if (data.detectedContractByAddress.size) {
+      data.logger.info(
+        `Loaded ${data.detectedContractByAddress.size} contracts from local database`,
+      );
+    }
+
     data.suspiciousContractByAddress = new Map();
     data.contractWaitingTime = 2 * 24 * 60 * 60; // 2d
 
-    data.logger = new Logger(data.isDevelopment ? LoggerLevel.DEBUG : LoggerLevel.INFO);
     data.analytics = new BotAnalytics(
       data.isDevelopment
         ? new InMemoryBotStorage(data.logger.info)
@@ -85,6 +104,23 @@ const provideInitialize = (
         logFn: data.logger.info,
       },
     );
+
+    data.queue = priorityQueue(async (createdContract, cb) => {
+      try {
+        await handleContract(createdContract);
+      } catch (e) {
+        data.logger.error('Task error', e);
+      } finally {
+        await data.database.deleteContract(createdContract.address);
+        cb();
+      }
+    }, 1);
+
+    // push tasks that have not yet been completed in the previous run
+    for (const contract of await data.database.getContracts()) {
+      data.queue.push(contract, contract.priority);
+    }
+
     data.isInitialized = true;
     data.logger.debug(
       `Initialized. Is Development: ${data.isDevelopment}. Is Target Mode: ${data.isTargetMode}.`,
@@ -173,12 +209,15 @@ const provideHandleAlert = (data: DataContainer, config: BotConfig): HandleAlert
             `Changed scan priority of ${contractAddress} due to "${alertEvent.alertId}" alert`,
           );
         }
+
+        await data.database.updatePriority(contractAddress, handler.getPriority());
       } else {
         data.suspiciousContractByAddress.set(contractAddress, {
           address: contractAddress,
           timestamp: Math.floor(
             new Date(alertEvent.alert.createdAt || Date.now()).valueOf() / 1000,
           ),
+          priority: handler.getPriority(),
         });
       }
     }
@@ -532,6 +571,7 @@ const provideHandleTransaction = (
     for (const contract of createdContracts) {
       data.analytics.incrementBotTriggers(txEvent.timestamp);
       data.detectedContractByAddress.set(contract.address, contract);
+      await data.database.addContract(contract, LOW_PRIORITY);
     }
 
     // log scan queue every 10 minutes
@@ -561,11 +601,12 @@ const provideHandleTransaction = (
       for (const contract of createdContracts) {
         let priority = LOW_PRIORITY;
         if (data.suspiciousContractByAddress.has(contract.address)) {
-          priority = HIGH_PRIORITY;
+          priority = data.suspiciousContractByAddress.get(contract.address)!.priority;
           data.suspiciousContractByAddress.delete(contract.address);
         }
         data.queue.push(contract, priority);
         data.detectedContractByAddress.delete(contract.address);
+        await data.database.updatePriority(contract.address, priority);
       }
     }
 
@@ -573,6 +614,7 @@ const provideHandleTransaction = (
     for (const contract of data.detectedContractByAddress.values()) {
       if (txEvent.timestamp - contract.timestamp > data.contractWaitingTime) {
         data.detectedContractByAddress.delete(contract.address);
+        await data.database.deleteContract(contract.address);
       }
     }
     // remove outdated suspicious contracts
@@ -590,7 +632,13 @@ const provideHandleTransaction = (
   };
 };
 
-const initialize = provideInitialize(data, botConfig, ENV, provideHandleContract(data, botUtils));
+const initialize = provideInitialize(
+  data,
+  botConfig,
+  ENV,
+  database,
+  provideHandleContract(data, botUtils),
+);
 
 export default {
   initialize: initialize,

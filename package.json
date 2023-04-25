@@ -1,6 +1,6 @@
 {
   "name": "attack-simulation-bot",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "The bot detects the deployment of smart contracts that contain exploit functions by simulating their execution within a sandbox environment.",
   "repository": {
     "type": "git",
@@ -20,6 +20,10 @@
       "shards": 11,
       "target": 2
     },
+    "10": {
+      "shards": 10,
+      "target": 2
+    },
     "56": {
       "shards": 10,
       "target": 2
@@ -28,7 +32,7 @@
       "shards": 10,
       "target": 2
     },
-    "43114": {
+    "250": {
       "shards": 11,
       "target": 2
     },
@@ -36,11 +40,7 @@
       "shards": 11,
       "target": 2
     },
-    "10": {
-      "shards": 10,
-      "target": 2
-    },
-    "250": {
+    "43114": {
       "shards": 11,
       "target": 2
     },
@@ -53,7 +53,7 @@
     "build": "tsc",
     "start": "npm run start:dev",
     "start:dev": "nodemon --watch src --watch forta.config.json -e js,ts,json  --exec \"npm run build && forta-agent run\"",
-    "start:prod": "forta-agent run --prod",
+    "start:prod": "NODE_ENV=production forta-agent run --prod",
     "start:docker": "docker run --rm -it $(docker build -q .)",
     "publish": "forta-agent publish",
     "publish:targeted": "bash ./build_custom.bash",
@@ -76,13 +76,15 @@
     "async": "^3.2.4",
     "axios": "^1.1.3",
     "bignumber.js": "^9.0.2",
+    "dotenv": "^16.0.3",
     "ethers": "5.7.1",
     "evm": "^0.2.0",
     "forta-agent": "^0.1.26",
     "forta-bot-analytics": "^0.0.4",
     "ganache": "^7.5.0",
     "js-combinatorics": "^2.1.1",
-    "lru-cache": "^7.14.0"
+    "lru-cache": "^7.14.0",
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {
     "@openzeppelin/contracts": "^4.7.0",

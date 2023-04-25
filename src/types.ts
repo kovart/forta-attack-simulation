@@ -5,6 +5,7 @@ import { AsyncPriorityQueue } from 'async';
 import { BotAnalytics } from 'forta-bot-analytics';
 
 import { Logger } from './logger';
+import { IDatabase } from './database';
 
 export enum TokenInterface {
   NATIVE = 'native',
@@ -42,7 +43,10 @@ export type DataContainer = {
   provider: providers.JsonRpcProvider;
   queue: AsyncPriorityQueue<CreatedContract>;
   detectedContractByAddress: Map<string, CreatedContract>;
-  suspiciousContractByAddress: Map<string, { address: string; timestamp: number }>;
+  suspiciousContractByAddress: Map<
+    string,
+    { address: string; timestamp: number; priority: number }
+  >;
   contractWaitingTime: number;
   payableFunctionEtherValue: number;
   totalUsdTransferThreshold: BigNumber;
@@ -54,6 +58,7 @@ export type DataContainer = {
   };
   findings: Finding[];
   chainId: number;
+  database: IDatabase;
   analytics: BotAnalytics;
   developerAbbreviation: string;
   isDevelopment: boolean;
