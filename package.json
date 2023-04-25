@@ -69,8 +69,7 @@
     "keyfile": "forta-agent keyfile",
     "test": "jest",
     "test:real-world": "jest src/tests/agent.real.spec.ts",
-    "lint": "eslint src/",
-    "prepare": "husky install"
+    "lint": "eslint src/"
   },
   "dependencies": {
     "async": "^3.2.4",
@@ -96,7 +95,6 @@
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^7.2.0",
     "forta-agent-tools": "^2.3.1",
-    "husky": "^8.0.0",
     "jest": "^29.2.2",
     "nodemon": "^2.0.8",
     "prettier": "^2.7.1",
