@@ -39,7 +39,7 @@ export class SqlDatabase implements IDatabase {
   async initialize(): Promise<void> {
     this.db.run(`CREATE TABLE IF NOT EXISTS contracts (
         contract_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        address CHARACTER(42) NOT NULL UNIQUE,
+        address CHARACTER(42) NOT NULL,
         deployer CHARACTER(42) NOT NULL,
         blockNumber INTEGER,
         timestamp INTEGER,
