@@ -34,7 +34,7 @@ const ENV = process.env as BotEnv;
 const data = {} as DataContainer;
 const botConfig: BotConfig = require('../bot-config.json');
 const database: IDatabase =
-  ENV.NODE_ENV !== 'production'
+  ENV.NODE_ENV === 'production'
     ? new SqlDatabase(path.resolve(__dirname, './bot.db'))
     : new InMemoryDatabase();
 
