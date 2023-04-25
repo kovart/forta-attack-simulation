@@ -1181,11 +1181,11 @@ describe('attack simulation', () => {
       mockData.detectedContractByAddress.set(contract3.address, contract3);
       mockData.detectedContractByAddress.set(contract4.address, contract4);
       mockData.suspiciousContractByAddress.set(contract1.address, { ...contract1, priority: 1 });
-      mockData.suspiciousContractByAddress.set(contract2.address, { ...contract1, priority: 1 });
-      mockData.suspiciousContractByAddress.set(contract3.address, { ...contract1, priority: 1 });
-      mockData.suspiciousContractByAddress.set(contract4.address, { ...contract1, priority: 1 });
+      mockData.suspiciousContractByAddress.set(contract2.address, { ...contract2, priority: 1 });
+      mockData.suspiciousContractByAddress.set(contract3.address, { ...contract3, priority: 1 });
+      mockData.suspiciousContractByAddress.set(contract4.address, { ...contract4, priority: 1 });
 
-      mockTxEvent.setTimestamp(contract1.timestamp);
+      mockTxEvent.setTimestamp(interval);
 
       await handleTransaction(mockTxEvent);
 
@@ -1194,7 +1194,7 @@ describe('attack simulation', () => {
 
       // ---------
 
-      mockTxEvent.setTimestamp(contract1.timestamp + mockData.contractWaitingTime + 1);
+      mockTxEvent.setTimestamp(interval + interval + 1);
 
       await handleTransaction(mockTxEvent);
 
@@ -1207,7 +1207,7 @@ describe('attack simulation', () => {
 
       // ---------
 
-      mockTxEvent.setTimestamp(contract1.timestamp + mockData.contractWaitingTime * 2 + 1);
+      mockTxEvent.setTimestamp(interval * 3 + 1);
 
       await handleTransaction(mockTxEvent);
 
@@ -1218,7 +1218,7 @@ describe('attack simulation', () => {
 
       // ---------
 
-      mockTxEvent.setTimestamp(contract1.timestamp + mockData.contractWaitingTime * 3 + 1);
+      mockTxEvent.setTimestamp(interval * 4 + 1);
 
       await handleTransaction(mockTxEvent);
 

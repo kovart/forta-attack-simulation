@@ -599,7 +599,7 @@ const provideHandleTransaction = (
         const detectedContract = data.detectedContractByAddress.get(contract.address);
         if (detectedContract) {
           data.logger.info(`Pushed suspicious contract: ${contract.address}`);
-          data.queue.push(detectedContract);
+          data.queue.push(detectedContract, contract.priority);
           data.detectedContractByAddress.delete(contract.address);
           data.suspiciousContractByAddress.delete(contract.address);
         }
