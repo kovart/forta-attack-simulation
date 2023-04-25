@@ -261,7 +261,11 @@ const provideHandleContract = (
       createdContract.address,
       createdContract.blockNumber,
     );
+    const singer = provider.getSigner(createdContract.deployer)
     const sighashes = getSighashes(contractCode);
+
+    const timestamp = (await data.provider.getBlock(createdContract.blockNumber))
+      .timestamp;
 
     try {
       // send ethers to the sender's account
@@ -293,9 +297,11 @@ const provideHandleContract = (
             wordCount: wordCount,
             addresses: [createdContract.deployer],
           })) {
+            const startTime = performance.now();
+
             try {
               // execute transaction
-              const tx = await provider.getSigner(createdContract.deployer).sendTransaction({
+              const tx = await singer.sendTransaction({
                 to: createdContract.address,
                 data: sighash + calldata,
                 value: value,
@@ -366,9 +372,6 @@ const provideHandleContract = (
                   break;
                 }
               }
-
-              const timestamp = (await data.provider.getBlock(createdContract.blockNumber))
-                .timestamp;
 
               // get token prices
               const tokenPriceByAddress: { [address: string]: number | undefined } = {};
@@ -540,6 +543,10 @@ const provideHandleContract = (
               // update current counter to see if it changes in the next iteration
               programCounter = e.data.programCounter;
             }
+
+            data.logger.debug(
+              `Performed call to ${sighash} (${wordCount} params) in ${performance.now() - startTime}ms`,
+            );
           }
         }
       }
