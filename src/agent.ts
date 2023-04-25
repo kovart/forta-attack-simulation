@@ -297,8 +297,6 @@ const provideHandleContract = (
             wordCount: wordCount,
             addresses: [createdContract.deployer],
           })) {
-            const startTime = performance.now();
-
             try {
               // execute transaction
               const tx = await singer.sendTransaction({
@@ -543,10 +541,6 @@ const provideHandleContract = (
               // update current counter to see if it changes in the next iteration
               programCounter = e.data.programCounter;
             }
-
-            data.logger.debug(
-              `Performed call to ${sighash} (${wordCount} params) in ${performance.now() - startTime}ms`,
-            );
           }
         }
       }
