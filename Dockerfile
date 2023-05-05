@@ -15,5 +15,6 @@ WORKDIR /app
 COPY --from=builder /app/dist ./src
 COPY bot-config.json ./
 COPY package*.json ./
+COPY LICENSE ./
 RUN npm ci --production
 CMD [ "npm", "run", "start:prod" ]
