@@ -215,24 +215,32 @@ const provideHandleAlert = (data: DataContainer, config: BotConfig): HandleAlert
       if (alertEvent.botId?.toLowerCase() !== botId.toLowerCase()) continue;
 
       const contractAddress = handler.getContractAddress();
+      const detectionPriority = handler.getPriority();
 
       if (!contractAddress) break;
 
-      let queuedContract: CreatedContract | undefined;
-      data.queue.remove((node) => {
-        if (node.data.address === contractAddress) queuedContract = node.data;
-        return !!queuedContract;
+      // Removing is the only way to change priority in the queue
+      let node: { data: CreatedContract; priority: number } | undefined;
+      data.queue.remove((task) => {
+        if (task.data.address === contractAddress) {
+          node = task;
+          // remove if the task priority is less than alert one (the bigger number, the less priority)
+          return task.priority > detectionPriority;
+        }
+        return false;
       });
 
-      if (queuedContract) {
-        data.queue.push(queuedContract, handler.getPriority());
+      if (node) {
+        if(node.priority <= detectionPriority) continue;
+
+        data.queue.push(node.data, detectionPriority);
         if (!data.isTargetMode) {
           data.logger.info(
             `Changed scan priority of ${contractAddress} due to "${alertEvent.alertId}" alert`,
           );
         }
 
-        await data.database.updatePriority(contractAddress, handler.getPriority());
+        await data.database.updatePriority(contractAddress, detectionPriority);
       } else {
         data.suspiciousContractByAddress.set(contractAddress, {
           address: contractAddress,
