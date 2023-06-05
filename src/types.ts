@@ -1,6 +1,7 @@
 import BigNumber from 'bignumber.js';
 import { Finding } from 'forta-agent';
 import { providers } from 'ethers';
+import { BotSharding } from 'forta-sharding';
 import { AsyncPriorityQueue } from 'async';
 import { BotAnalytics } from 'forta-bot-analytics';
 
@@ -42,6 +43,7 @@ export type DataContainer = {
   logger: Logger;
   provider: providers.JsonRpcProvider;
   queue: AsyncPriorityQueue<CreatedContract>;
+  sharding: BotSharding;
   detectedContractByAddress: Map<string, CreatedContract>;
   suspiciousContractByAddress: Map<
     string,

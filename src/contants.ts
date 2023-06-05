@@ -19,3 +19,45 @@ export const BURN_ADDRESSES = [
   '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   '0x000000000000000000000000000000000000dead',
 ];
+
+export const BASE_SHARDING_CONFIG = {
+  '1': {
+    shards: 11,
+    target: 2,
+  },
+  '10': {
+    shards: 10,
+    target: 2,
+  },
+  '56': {
+    shards: 10,
+    target: 2,
+  },
+  '137': {
+    shards: 10,
+    target: 2,
+  },
+  '250': {
+    shards: 11,
+    target: 2,
+  },
+  '42161': {
+    shards: 11,
+    target: 2,
+  },
+  '43114': {
+    shards: 11,
+    target: 2,
+  },
+  default: {
+    shards: 10,
+    target: 2,
+  },
+};
+
+export const TARGETED_SHARDING_CONFIG = {
+  default: {
+    shards: 5,
+    target: 2,
+  },
+};

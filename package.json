@@ -17,36 +17,36 @@
   ],
   "chainSettings": {
     "1": {
-      "shards": 11,
-      "target": 2
+      "shards": 1,
+      "target": 22
     },
     "10": {
-      "shards": 10,
-      "target": 2
+      "shards": 1,
+      "target": 20
     },
     "56": {
-      "shards": 10,
-      "target": 2
+      "shards": 1,
+      "target": 20
     },
     "137": {
-      "shards": 10,
-      "target": 2
+      "shards": 1,
+      "target": 20
     },
     "250": {
-      "shards": 11,
-      "target": 2
+      "shards": 1,
+      "target": 22
     },
     "42161": {
-      "shards": 11,
-      "target": 2
+      "shards": 1,
+      "target": 22
     },
     "43114": {
-      "shards": 11,
-      "target": 2
+      "shards": 1,
+      "target": 22
     },
     "default": {
-      "shards": 10,
-      "target": 2
+      "shards": 1,
+      "target": 20
     }
   },
   "scripts": {
@@ -80,6 +80,8 @@
     "evm": "^0.2.0",
     "forta-agent": "^0.1.26",
     "forta-bot-analytics": "^0.0.4",
+    "forta-helpers": "^1.0.9",
+    "forta-sharding": "^1.0.0",
     "ganache": "^7.5.0",
     "js-combinatorics": "^2.1.1",
     "lru-cache": "^7.14.0",

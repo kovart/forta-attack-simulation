@@ -2,6 +2,8 @@ import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
 import dotenv from 'dotenv';
 import path from 'path';
+import { BotSharding } from 'forta-sharding';
+import { createTicker } from 'forta-helpers';
 import { priorityQueue } from 'async';
 import {
   getEthersProvider,
@@ -17,7 +19,7 @@ import * as botUtils from './utils';
 import { Logger, LoggerLevel } from './logger';
 import { IDatabase, InMemoryDatabase, SqlDatabase } from './database';
 import { createExploitFunctionFinding } from './findings';
-import { BURN_ADDRESSES } from './contants';
+import { BASE_SHARDING_CONFIG, BURN_ADDRESSES, TARGETED_SHARDING_CONFIG } from './contants';
 import {
   BotConfig,
   BotEnv,
@@ -72,8 +74,24 @@ const provideInitialize = (
       };
     });
 
-    data.database = database;
+    // Sharding
 
+    const shardingConfig: { [key: string]: { target: number } } = data.isTargetMode
+      ? TARGETED_SHARDING_CONFIG
+      : BASE_SHARDING_CONFIG;
+    const redundancy: number =
+      shardingConfig[data.chainId]?.target || shardingConfig['default']?.target;
+
+    if (!redundancy) throw new Error('Redundancy is missing');
+
+    data.sharding = new BotSharding({
+      isDevelopment: data.isDevelopment,
+      redundancy: redundancy,
+    });
+
+    // Database
+
+    data.database = database;
     await data.database.initialize();
 
     data.detectedContractByAddress = new Map(
@@ -87,6 +105,8 @@ const provideInitialize = (
 
     data.suspiciousContractByAddress = new Map();
     data.contractWaitingTime = 2 * 24 * 60 * 60; // 2d
+
+    // Bot Analytics
 
     data.analytics = new BotAnalytics(
       data.isDevelopment
@@ -104,6 +124,8 @@ const provideInitialize = (
         logFn: data.logger.info,
       },
     );
+
+    // Async queue
 
     data.queue = priorityQueue(async (createdContract, cb) => {
       try {
@@ -261,11 +283,10 @@ const provideHandleContract = (
       createdContract.address,
       createdContract.blockNumber,
     );
-    const singer = provider.getSigner(createdContract.deployer)
+    const singer = provider.getSigner(createdContract.deployer);
     const sighashes = getSighashes(contractCode);
 
-    const timestamp = (await data.provider.getBlock(createdContract.blockNumber))
-      .timestamp;
+    const timestamp = (await data.provider.getBlock(createdContract.blockNumber)).timestamp;
 
     try {
       // send ethers to the sender's account
@@ -553,7 +574,8 @@ const provideHandleTransaction = (
   utils: Pick<typeof botUtils, 'getCreatedContracts'>,
   initialize: Initialize,
 ): HandleTransaction => {
-  let loggedAt = 0;
+  let statsLoggedAt = 0;
+  const isTimeToSyncSharding = createTicker(5 * 60 * 1000); // 5m
 
   return async function handleTransaction(txEvent: TransactionEvent) {
     if (!data.isInitialized) {
@@ -562,7 +584,17 @@ const provideHandleTransaction = (
       await initialize();
     }
 
-    await data.analytics.sync(txEvent.timestamp);
+    if (!data.isDevelopment) {
+      await data.analytics.sync(txEvent.timestamp);
+
+      if (isTimeToSyncSharding(txEvent.timestamp)) {
+        await data.sharding.sync(txEvent.network);
+      }
+
+      if (txEvent.blockNumber % data.sharding.getShardCount() !== data.sharding.getShardIndex()) {
+        return data.findings.splice(0);
+      }
+    }
 
     const { getCreatedContracts } = utils;
 
@@ -576,7 +608,7 @@ const provideHandleTransaction = (
     }
 
     // log scan queue every 10 minutes
-    if (data.queue.length() >= 5 && Date.now() - loggedAt > 10 * 60 * 1000) {
+    if (data.queue.length() >= 5 && Date.now() - statsLoggedAt > 10 * 60 * 1000) {
       const workers = data.queue.workersList();
       data.logger.warn(
         `Scan queue: ${data.queue.length()}. ` +
@@ -585,7 +617,7 @@ const provideHandleTransaction = (
           `Block delay: ${txEvent.blockNumber - workers[0].data.blockNumber}. ` +
           `Memory: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)}Mb`,
       );
-      loggedAt = Date.now();
+      statsLoggedAt = Date.now();
     }
 
     if (data.isTargetMode) {
