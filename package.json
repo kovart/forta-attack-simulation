@@ -1,6 +1,6 @@
 {
   "name": "attack-simulation-bot",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "description": "The bot detects the deployment of smart contracts that contain exploit functions by simulating their execution within a sandbox environment.",
   "repository": {
     "type": "git",
